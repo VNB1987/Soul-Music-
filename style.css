@@ -1,1 +1,755 @@
+:root {
+  --stage-width: 1920;
+  --stage-height: 1080;
 
+  --bg-1: #020207;
+  --bg-2: #080714;
+  --panel: rgba(5, 7, 18, 0.94);
+
+  --gold: #ffd96a;
+  --red: #ff284f;
+  --wine: #75001e;
+  --cyan: #27e8ff;
+  --pink: #ff35d3;
+  --blue: #278eff;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #000;
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+body {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* =========================
+   VIEWPORT + SCENĂ 1920x1080
+========================= */
+
+#viewport {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  background: #000;
+}
+
+#stage {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+
+  width: 1920px;
+  height: 1080px;
+
+  transform-origin: center center;
+
+  overflow: hidden;
+
+  background:
+    radial-gradient(
+      circle at 52% 39%,
+      rgba(46, 23, 75, 0.42),
+      transparent 31%
+    ),
+    radial-gradient(
+      circle at 82% 40%,
+      rgba(0, 135, 255, 0.09),
+      transparent 26%
+    ),
+    radial-gradient(
+      circle at 18% 45%,
+      rgba(255, 0, 140, 0.08),
+      transparent 29%
+    ),
+    linear-gradient(
+      180deg,
+      var(--bg-1),
+      var(--bg-2) 67%,
+      #020207
+    );
+}
+
+/* =========================
+   CANVAS-URI
+========================= */
+
+#ambientCanvas,
+#visualizerCanvas,
+#effectsCanvas {
+  position: absolute;
+  inset: 0;
+
+  width: 1920px;
+  height: 1080px;
+
+  pointer-events: none;
+}
+
+#ambientCanvas {
+  z-index: 1;
+}
+
+#visualizerCanvas {
+  z-index: 4;
+}
+
+#effectsCanvas {
+  z-index: 7;
+}
+
+/* =========================
+   DREPTUNGHI STÂNGA
+   DE SUS PÂNĂ JOS
+========================= */
+
+#leftFrame {
+  position: absolute;
+
+  left: 24px;
+  top: 18px;
+
+  width: 520px;
+  height: 1044px;
+
+  border-radius: 30px;
+
+  overflow: hidden;
+  z-index: 5;
+
+  background: rgba(2, 4, 12, 0.96);
+}
+
+.frame-background {
+  position: absolute;
+  inset: 14px;
+
+  border-radius: 22px;
+
+  background:
+    radial-gradient(
+      circle at 50% 25%,
+      rgba(55, 40, 95, 0.22),
+      transparent 38%
+    ),
+    linear-gradient(
+      180deg,
+      rgba(10, 13, 31, 0.98),
+      rgba(2, 4, 12, 0.99)
+    );
+}
+
+.frame-neon {
+  position: absolute;
+  inset: 0;
+
+  border-radius: inherit;
+
+  pointer-events: none;
+
+  border: 4px solid rgba(70, 225, 255, 0.32);
+
+  box-shadow:
+    0 0 10px rgba(39, 232, 255, 0.42),
+    0 0 24px rgba(255, 53, 211, 0.32),
+    0 0 52px rgba(39, 142, 255, 0.22),
+    inset 0 0 20px rgba(255, 255, 255, 0.06);
+}
+
+/* =========================
+   LOGO CENTRAL
+========================= */
+
+#logoArea {
+  position: absolute;
+
+  left: 565px;
+  top: 110px;
+
+  width: 790px;
+  height: 520px;
+
+  z-index: 8;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#soulLogo {
+  position: relative;
+  z-index: 4;
+
+  width: 86%;
+  max-height: 88%;
+
+  object-fit: contain;
+
+  transform-origin: center center;
+
+  filter:
+    drop-shadow(0 16px 30px rgba(0, 0, 0, 0.95))
+    drop-shadow(0 0 14px rgba(255, 215, 105, 0.22));
+}
+
+#logoHalo {
+  position: absolute;
+
+  left: 50%;
+  top: 50%;
+
+  width: 560px;
+  height: 330px;
+
+  transform: translate(-50%, -50%);
+
+  border-radius: 50%;
+
+  background:
+    radial-gradient(
+      ellipse at center,
+      rgba(255, 214, 90, 0.11),
+      rgba(255, 53, 211, 0.06) 42%,
+      transparent 70%
+    );
+
+  filter: blur(18px);
+  opacity: 0.7;
+}
+
+#logoEnergy {
+  position: absolute;
+
+  left: 50%;
+  top: 50%;
+
+  width: 700px;
+  height: 390px;
+
+  transform: translate(-50%, -50%);
+
+  border-radius: 50%;
+
+  border: 1px solid rgba(255, 255, 255, 0.07);
+
+  box-shadow:
+    0 0 30px rgba(39, 232, 255, 0.08),
+    0 0 60px rgba(255, 53, 211, 0.07);
+
+  opacity: 0.5;
+}
+
+/* =========================
+   BUTOANE TIKTOK + LIVE
+========================= */
+
+.round-button {
+  position: absolute;
+
+  border-radius: 50%;
+
+  z-index: 9;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+
+  background:
+    radial-gradient(
+      circle,
+      rgba(18, 18, 36, 0.97),
+      rgba(3, 4, 12, 0.99) 72%
+    );
+
+  box-shadow:
+    0 12px 32px rgba(0, 0, 0, 0.8),
+    inset 0 0 28px rgba(255, 255, 255, 0.025);
+}
+
+#tiktokButton {
+  left: 1555px;
+  top: 80px;
+
+  width: 220px;
+  height: 220px;
+}
+
+#liveButton {
+  left: 1590px;
+  top: 320px;
+
+  width: 155px;
+  height: 155px;
+
+  background:
+    radial-gradient(
+      circle,
+      #35000e,
+      #140007 58%,
+      #070004 78%
+    );
+}
+
+.button-neon {
+  position: absolute;
+  inset: -7px;
+
+  border-radius: 50%;
+
+  pointer-events: none;
+
+  border: 4px solid rgba(39, 232, 255, 0.6);
+
+  box-shadow:
+    0 0 12px rgba(39, 232, 255, 0.75),
+    0 0 28px rgba(255, 53, 211, 0.48),
+    0 0 50px rgba(39, 142, 255, 0.30);
+}
+
+#liveButton .button-neon {
+  border-color: rgba(255, 40, 79, 0.65);
+
+  box-shadow:
+    0 0 12px rgba(255, 40, 79, 0.75),
+    0 0 32px rgba(117, 0, 30, 0.58),
+    0 0 52px rgba(255, 40, 79, 0.22);
+}
+
+.tiktok-symbol {
+  color: #fff;
+
+  font-size: 72px;
+  line-height: 0.85;
+
+  font-weight: 900;
+
+  text-shadow:
+    -5px 0 0 var(--cyan),
+    5px 0 0 var(--pink),
+    0 0 24px rgba(255, 255, 255, 0.75);
+}
+
+.button-label {
+  margin-top: 10px;
+
+  color: #fff;
+
+  font-size: 30px;
+  font-weight: 900;
+}
+
+.live-label {
+  color: #fff;
+
+  font-size: 42px;
+  font-weight: 900;
+
+  text-shadow:
+    0 0 12px var(--red),
+    0 0 32px var(--wine);
+}
+
+.live-dot {
+  width: 14px;
+  height: 14px;
+
+  margin-top: 10px;
+
+  border-radius: 50%;
+
+  background: var(--red);
+
+  box-shadow:
+    0 0 12px var(--red),
+    0 0 26px var(--red);
+}
+
+/* =========================
+   CAMERA MAI MARE
+========================= */
+
+#cameraFrame {
+  position: absolute;
+
+  left: 1390px;
+  top: 505px;
+
+  width: 490px;
+  height: 370px;
+
+  border-radius: 30px;
+
+  overflow: hidden;
+  z-index: 8;
+
+  background: rgba(2, 4, 12, 0.96);
+}
+
+#cameraFrame .frame-neon {
+  border-color: rgba(255, 217, 106, 0.62);
+
+  box-shadow:
+    0 0 12px rgba(255, 217, 106, 0.78),
+    0 0 30px rgba(255, 170, 20, 0.44),
+    0 0 56px rgba(255, 217, 106, 0.24),
+    inset 0 0 20px rgba(255, 255, 255, 0.06);
+}
+
+.frame-title {
+  position: absolute;
+
+  top: 10px;
+  left: 50%;
+
+  transform: translateX(-50%);
+
+  color: #ffe59a;
+
+  font-size: 15px;
+  font-weight: 900;
+
+  letter-spacing: 2px;
+
+  text-shadow:
+    0 0 10px rgba(255, 217, 106, 0.7);
+}
+
+/* =========================
+   BANNER JOS
+========================= */
+
+#ticker {
+  position: absolute;
+
+  left: 560px;
+  bottom: 24px;
+
+  width: 1320px;
+  height: 125px;
+
+  z-index: 10;
+
+  overflow: hidden;
+
+  border-radius: 28px;
+
+  background:
+    linear-gradient(
+      180deg,
+      rgba(10, 11, 27, 0.96),
+      rgba(4, 5, 14, 0.98)
+    );
+
+  border: 2px solid rgba(255, 255, 255, 0.10);
+
+  box-shadow:
+    0 0 20px rgba(255, 53, 211, 0.18),
+    0 0 38px rgba(39, 232, 255, 0.12),
+    inset 0 0 22px rgba(255, 255, 255, 0.035);
+}
+
+#tickerGlow {
+  position: absolute;
+  inset: -2px;
+
+  border-radius: inherit;
+
+  pointer-events: none;
+
+  background:
+    linear-gradient(
+      90deg,
+      var(--pink),
+      var(--cyan),
+      var(--gold),
+      var(--red),
+      #fff,
+      var(--pink)
+    );
+
+  background-size: 300% 100%;
+
+  opacity: 0.76;
+
+  animation: ticker-border 8s linear infinite;
+
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+
+  padding: 3px;
+}
+
+@keyframes ticker-border {
+  to {
+    background-position: 300% 0;
+  }
+}
+
+#tickerViewport {
+  position: absolute;
+  inset: 0;
+
+  overflow: hidden;
+
+  display: flex;
+  align-items: center;
+}
+
+#tickerTrack {
+  position: absolute;
+
+  display: flex;
+  align-items: center;
+
+  white-space: nowrap;
+
+  min-width: max-content;
+
+  font-size: 38px;
+  font-weight: 900;
+
+  letter-spacing: 1px;
+
+  will-change: transform;
+}
+
+/* =========================
+   PANOU DE CONTROL
+========================= */
+
+#controlPanel {
+  position: fixed;
+
+  left: 50%;
+  top: 50%;
+
+  transform: translate(-50%, -50%);
+
+  width: min(760px, 94vw);
+
+  z-index: 100;
+
+  padding: 22px;
+
+  border-radius: 24px;
+
+  color: #fff;
+
+  background:
+    linear-gradient(
+      180deg,
+      rgba(15, 15, 34, 0.98),
+      rgba(7, 7, 20, 0.99)
+    );
+
+  border: 1px solid rgba(255, 255, 255, 0.16);
+
+  box-shadow:
+    0 26px 80px rgba(0, 0, 0, 0.72),
+    0 0 35px rgba(255, 53, 211, 0.12);
+}
+
+#controlPanel h2 {
+  margin: 0 0 18px;
+
+  color: var(--gold);
+
+  text-align: center;
+
+  font-size: 24px;
+
+  text-shadow:
+    0 0 15px rgba(255, 217, 106, 0.28);
+}
+
+.control-row {
+  display: grid;
+
+  grid-template-columns:
+    minmax(0, 1fr)
+    190px;
+
+  gap: 12px;
+
+  margin: 12px 0;
+}
+
+select,
+button,
+input {
+  font: inherit;
+}
+
+select {
+  width: 100%;
+
+  padding: 12px 14px;
+
+  color: #fff;
+
+  border-radius: 13px;
+
+  border: 1px solid rgba(140, 140, 200, 0.45);
+
+  background: #17172b;
+}
+
+button {
+  padding: 12px 16px;
+
+  border: 0;
+  border-radius: 13px;
+
+  font-weight: 900;
+
+  cursor: pointer;
+}
+
+#activateMusic {
+  color: #101018;
+
+  background:
+    linear-gradient(
+      90deg,
+      var(--pink),
+      var(--gold)
+    );
+}
+
+#activateVoice {
+  color: #fff;
+
+  background:
+    linear-gradient(
+      90deg,
+      var(--wine),
+      var(--red)
+    );
+}
+
+.slider-grid {
+  display: grid;
+
+  grid-template-columns:
+    1fr
+    1fr;
+
+  gap: 16px;
+
+  margin: 18px 0;
+}
+
+.slider-grid label {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+
+  color: #eee;
+
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.slider-grid input {
+  width: 100%;
+}
+
+.panel-buttons {
+  display: grid;
+
+  grid-template-columns:
+    1fr
+    1fr
+    1.4fr;
+
+  gap: 10px;
+}
+
+#calmMode {
+  color: #fff;
+
+  background:
+    linear-gradient(
+      90deg,
+      #155c84,
+      #22c8d6
+    );
+}
+
+#partyMode {
+  color: #fff;
+
+  background:
+    linear-gradient(
+      90deg,
+      #9e185d,
+      #ff843d
+    );
+}
+
+#hidePanel {
+  color: #fff;
+
+  background: #303048;
+}
+
+#statusText,
+.shortcut-help {
+  margin: 14px 0 0;
+
+  color: rgba(255, 255, 255, 0.84);
+
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.shortcut-help {
+  color: var(--gold);
+  text-align: center;
+}
+
+#shortcutNotice {
+  position: fixed;
+
+  right: 15px;
+  bottom: 15px;
+
+  z-index: 200;
+
+  padding: 10px 14px;
+
+  color: #fff;
+
+  border-radius: 12px;
+
+  background: rgba(0, 0, 0, 0.72);
+
+  opacity: 0;
+
+  transition: opacity 0.25s ease;
+}
+
+#shortcutNotice.visible {
+  opacity: 1;
+}
+
+.hidden {
+  display: none !important;
+}
