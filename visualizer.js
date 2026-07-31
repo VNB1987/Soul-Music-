@@ -15,8 +15,10 @@ const SoulVisualizer = {
   },
 
   particles: [],
+
   previousBass: 0,
-  beatFlash: 0,
+  beatEnergy: 0,
+  voiceEnergy: 0,
 
   init() {
     this.canvas =
@@ -24,7 +26,7 @@ const SoulVisualizer = {
 
     if (!this.canvas) {
       console.error(
-        "Visualizer canvas nu a fost găsit."
+        "Nu a fost găsit visualizerCanvas."
       );
 
       return;
@@ -37,26 +39,53 @@ const SoulVisualizer = {
     this.canvas.height = this.height;
 
     this.createParticles();
-    this.animate();
+
+    requestAnimationFrame(
+      time => this.animate(time)
+    );
   },
 
   createParticles() {
     this.particles = [];
 
-    for (let index = 0; index < 85; index += 1) {
+    for (
+      let index = 0;
+      index < 110;
+      index += 1
+    ) {
       this.particles.push({
-        angle: Math.random() * Math.PI * 2,
-        distance: 250 + Math.random() * 150,
-        size: 1 + Math.random() * 3,
-        speed: 0.0003 + Math.random() * 0.001,
-        phase: Math.random() * Math.PI * 2
+        angle:
+          Math.random() *
+          Math.PI *
+          2,
+
+        distance:
+          210 +
+          Math.random() *
+          230,
+
+        size:
+          0.8 +
+          Math.random() *
+          3.2,
+
+        speed:
+          0.00015 +
+          Math.random() *
+          0.0011,
+
+        phase:
+          Math.random() *
+          Math.PI *
+          2
       });
     }
   },
 
   animate(time = 0) {
-    window.requestAnimationFrame(
-      nextTime => this.animate(nextTime)
+    requestAnimationFrame(
+      nextTime =>
+        this.animate(nextTime)
     );
 
     if (!window.SoulAudio) {
@@ -65,7 +94,70 @@ const SoulVisualizer = {
 
     SoulAudio.update();
 
-    const audio = SoulAudio.getState();
+    const audio =
+      SoulAudio.getState();
+
+    const music =
+      audio.music;
+
+    const voice =
+      audio.voice;
+
+    const musicLevel =
+      Number(music.level || 0);
+
+    const voiceLevel =
+      Number(voice.level || 0);
+
+    const musicActive =
+      music.active &&
+      (
+        musicLevel > 0.008 ||
+        music.bass > 0.008
+      );
+
+    /*
+      Vocea devine vizibilă doar când:
+      1. microfonul este activ;
+      2. nivelul depășește zgomotul ambiental;
+      3. vocea are suficientă intensitate.
+    */
+
+    const voiceThreshold = 0.10;
+
+    const voiceDetected =
+      voice.active &&
+      voiceLevel > voiceThreshold;
+
+    /*
+      Nu înlocuim muzica.
+      Vocea este doar un strat roșu peste muzică.
+    */
+
+    const targetVoiceEnergy =
+      voiceDetected
+        ? Math.min(
+            1,
+            (
+              voiceLevel -
+              voiceThreshold
+            ) * 5
+          )
+        : 0;
+
+    this.voiceEnergy +=
+      (
+        targetVoiceEnergy -
+        this.voiceEnergy
+      ) *
+      (
+        targetVoiceEnergy >
+        this.voiceEnergy
+          ? 0.32
+          : 0.12
+      );
+
+    this.detectBeat(music);
 
     this.context.clearRect(
       0,
@@ -74,82 +166,71 @@ const SoulVisualizer = {
       this.height
     );
 
-    const music = audio.music;
-    const voice = audio.voice;
-
-    const musicLevel = music.level;
-    const voiceLevel = voice.level;
-
-    const voiceActive =
-      voice.active && voiceLevel > 0.025;
-
-    this.detectBeat(music);
-
-    this.drawAmbientHalo(
+    this.drawBaseHalo(
       time,
       musicLevel,
-      voiceLevel,
-      voiceActive
+      this.voiceEnergy
     );
 
-    this.drawLogoAura(
-      time,
-      music,
-      voice,
-      voiceActive,
-      audio.neonIntensity
-    );
+    if (musicActive) {
+      this.drawMusicVisualizer(
+        time,
+        music,
+        audio.neonIntensity
+      );
 
-    this.drawWingRays(
-      time,
-      music,
-      voice,
-      voiceActive,
-      audio.neonIntensity
-    );
+      this.drawMusicBeams(
+        time,
+        music,
+        audio.neonIntensity
+      );
 
-    this.drawDiscEnergy(
-      time,
-      music,
-      voice,
-      voiceActive
-    );
+      this.drawMusicParticles(
+        time,
+        music
+      );
+    }
 
-    this.drawBassBeams(
-      time,
-      music,
-      voice,
-      voiceActive
-    );
+    if (this.voiceEnergy > 0.01) {
+      this.drawVoiceRays(
+        time,
+        voice,
+        this.voiceEnergy,
+        audio.neonIntensity
+      );
 
-    this.drawParticles(
-      time,
-      music,
-      voice,
-      voiceActive
-    );
+      this.drawVoicePulse(
+        time,
+        this.voiceEnergy
+      );
+    }
 
     this.animateLogo(
+      time,
       music,
-      voice,
-      voiceActive
+      this.voiceEnergy
     );
   },
 
   detectBeat(music) {
-    const bassDifference =
-      music.bass - this.previousBass;
+    const bass =
+      Number(music.bass || 0);
+
+    const difference =
+      bass -
+      this.previousBass;
 
     if (
       music.active &&
-      music.bass > 0.22 &&
-      bassDifference > 0.055
+      bass > 0.18 &&
+      difference > 0.035
     ) {
-      this.beatFlash = 1;
+      this.beatEnergy = 1;
     }
 
-    this.previousBass = music.bass;
-    this.beatFlash *= 0.86;
+    this.previousBass = bass;
+
+    this.beatEnergy *= 0.86;
   },
 
   getCenter() {
@@ -164,97 +245,110 @@ const SoulVisualizer = {
     };
   },
 
-  getColor(
+  getRainbowColor(
     index,
     time,
-    voiceActive,
     opacity = 1
   ) {
-    if (voiceActive) {
-      const voiceColors = [
-        `rgba(255, 28, 66, ${opacity})`,
-        `rgba(143, 0, 35, ${opacity})`,
-        `rgba(196, 72, 35, ${opacity})`,
-        `rgba(93, 10, 24, ${opacity})`
-      ];
-
-      return voiceColors[
-        index % voiceColors.length
-      ];
-    }
-
     const hue =
       (
         time * 0.045 +
-        index * 7
+        index * 6.8
       ) % 360;
 
-    return `hsla(
-      ${hue},
-      100%,
-      64%,
-      ${opacity}
-    )`;
+    return `
+      hsla(
+        ${hue},
+        100%,
+        64%,
+        ${opacity}
+      )
+    `;
   },
 
-  drawAmbientHalo(
+  getVoiceColor(
+    index,
+    opacity = 1
+  ) {
+    const colors = [
+      `rgba(255, 25, 65, ${opacity})`,
+      `rgba(145, 0, 38, ${opacity})`,
+      `rgba(196, 65, 35, ${opacity})`,
+      `rgba(95, 14, 25, ${opacity})`
+    ];
+
+    return colors[
+      index %
+      colors.length
+    ];
+  },
+
+  drawBaseHalo(
     time,
     musicLevel,
-    voiceLevel,
-    voiceActive
+    voiceEnergy
   ) {
-    const context = this.context;
-    const center = this.getCenter();
+    const context =
+      this.context;
 
-    const energy = voiceActive
-      ? voiceLevel
-      : musicLevel;
+    const center =
+      this.getCenter();
+
+    const energy =
+      Math.max(
+        musicLevel,
+        voiceEnergy
+      );
 
     const radius =
       260 +
-      energy * 95 +
-      this.beatFlash * 30;
+      energy * 110 +
+      this.beatEnergy * 35;
 
     const gradient =
       context.createRadialGradient(
         center.x,
         center.y,
-        30,
+        20,
         center.x,
         center.y,
         radius
       );
 
-    if (voiceActive) {
-      gradient.addColorStop(
-        0,
-        `rgba(255, 35, 70, ${
-          0.14 + voiceLevel * 0.22
-        })`
-      );
+    const hue =
+      (
+        time * 0.025
+      ) % 360;
 
+    gradient.addColorStop(
+      0,
+      `hsla(
+        ${hue},
+        100%,
+        62%,
+        ${0.05 + musicLevel * 0.16}
+      )`
+    );
+
+    gradient.addColorStop(
+      0.35,
+      `rgba(
+        255,
+        205,
+        70,
+        ${0.03 + musicLevel * 0.08}
+      )`
+    );
+
+    if (voiceEnergy > 0.01) {
       gradient.addColorStop(
-        0.45,
-        `rgba(115, 0, 28, ${
-          0.08 + voiceLevel * 0.16
-        })`
-      );
-    } else {
-      gradient.addColorStop(
-        0,
-        `hsla(
-          ${(time * 0.025) % 360},
-          100%,
-          62%,
-          ${0.08 + musicLevel * 0.18}
+        0.55,
+        `rgba(
+          150,
+          0,
+          35,
+          ${voiceEnergy * 0.18}
         )`
-      );
-
-      gradient.addColorStop(
-        0.45,
-        `rgba(255, 206, 75, ${
-          0.04 + musicLevel * 0.08
-        })`
       );
     }
 
@@ -265,7 +359,8 @@ const SoulVisualizer = {
 
     context.save();
 
-    context.fillStyle = gradient;
+    context.fillStyle =
+      gradient;
 
     context.beginPath();
 
@@ -278,75 +373,13 @@ const SoulVisualizer = {
     );
 
     context.fill();
+
     context.restore();
   },
 
-  drawLogoAura(
-    time,
-    music,
-    voice,
-    voiceActive,
-    neonIntensity
-  ) {
-    const context = this.context;
-    const center = this.getCenter();
-
-    const level = voiceActive
-      ? voice.level
-      : music.level;
-
-    const horizontalRadius =
-      325 +
-      level * 40 +
-      this.beatFlash * 15;
-
-    const verticalRadius =
-      175 +
-      level * 28 +
-      this.beatFlash * 10;
-
-    for (let layer = 0; layer < 3; layer += 1) {
-      const color = this.getColor(
-        layer * 18,
-        time,
-        voiceActive,
-        0.16 + level * 0.28
-      );
-
-      context.save();
-
-      context.beginPath();
-
-      context.ellipse(
-        center.x,
-        center.y,
-        horizontalRadius + layer * 13,
-        verticalRadius + layer * 9,
-        0,
-        0,
-        Math.PI * 2
-      );
-
-      context.lineWidth =
-        2 + layer * 1.5;
-
-      context.strokeStyle = color;
-      context.shadowColor = color;
-
-      context.shadowBlur =
-        (
-          14 +
-          level * 38 +
-          layer * 8
-        ) * neonIntensity;
-
-      context.stroke();
-      context.restore();
-    }
-  },
-
   getLogoAnchors() {
-    const box = this.logoBox;
+    const box =
+      this.logoBox;
 
     const points = [];
 
@@ -354,27 +387,35 @@ const SoulVisualizer = {
       Aripa stângă
     */
 
-    for (let index = 0; index < 30; index += 1) {
-      const progress = index / 29;
+    for (
+      let index = 0;
+      index < 42;
+      index += 1
+    ) {
+      const progress =
+        index / 41;
 
       points.push({
         x:
           box.x +
-          40 +
-          progress * 300,
+          30 +
+          progress * 315,
 
         y:
           box.y +
-          135 -
-          Math.sin(progress * Math.PI) * 100,
+          145 -
+          Math.sin(
+            progress *
+            Math.PI
+          ) * 110,
 
         directionX:
-          -0.95 +
-          progress * 0.35,
+          -1 +
+          progress * 0.42,
 
         directionY:
-          -0.50 +
-          progress * 0.62
+          -0.55 +
+          progress * 0.72
       });
     }
 
@@ -382,54 +423,110 @@ const SoulVisualizer = {
       Aripa dreaptă
     */
 
-    for (let index = 0; index < 30; index += 1) {
-      const progress = index / 29;
+    for (
+      let index = 0;
+      index < 42;
+      index += 1
+    ) {
+      const progress =
+        index / 41;
 
       points.push({
         x:
           box.x +
           box.width -
-          40 -
-          progress * 300,
+          30 -
+          progress * 315,
 
         y:
           box.y +
-          135 -
-          Math.sin(progress * Math.PI) * 100,
+          145 -
+          Math.sin(
+            progress *
+            Math.PI
+          ) * 110,
 
         directionX:
-          0.95 -
-          progress * 0.35,
+          1 -
+          progress * 0.42,
 
         directionY:
-          -0.50 +
-          progress * 0.62
+          -0.55 +
+          progress * 0.72
       });
     }
 
     /*
-      Partea inferioară MUSIC
+      Literele SOUL
     */
 
-    for (let index = 0; index < 38; index += 1) {
-      const progress = index / 37;
+    for (
+      let index = 0;
+      index < 44;
+      index += 1
+    ) {
+      const progress =
+        index / 43;
 
       points.push({
         x:
           box.x +
-          170 +
-          progress * 450,
+          180 +
+          progress * 430,
 
         y:
           box.y +
-          390 +
-          Math.sin(progress * Math.PI) * 35,
+          245 +
+          Math.sin(
+            progress *
+            Math.PI
+          ) * 18,
 
         directionX:
-          (progress - 0.5) * 0.55,
+          (
+            progress -
+            0.5
+          ) * 0.65,
 
         directionY:
-          0.95
+          -0.85
+      });
+    }
+
+    /*
+      Literele MUSIC
+    */
+
+    for (
+      let index = 0;
+      index < 46;
+      index += 1
+    ) {
+      const progress =
+        index / 45;
+
+      points.push({
+        x:
+          box.x +
+          160 +
+          progress * 470,
+
+        y:
+          box.y +
+          395 +
+          Math.sin(
+            progress *
+            Math.PI
+          ) * 30,
+
+        directionX:
+          (
+            progress -
+            0.5
+          ) * 0.62,
+
+        directionY:
+          1
       });
     }
 
@@ -437,23 +534,31 @@ const SoulVisualizer = {
       Discul central
     */
 
-    const center = this.getCenter();
+    const center =
+      this.getCenter();
 
-    for (let index = 0; index < 34; index += 1) {
+    for (
+      let index = 0;
+      index < 48;
+      index += 1
+    ) {
       const angle =
-        index / 34 *
+        index /
+        48 *
         Math.PI *
         2;
 
       points.push({
         x:
           center.x +
-          Math.cos(angle) * 105,
+          Math.cos(angle) *
+          112,
 
         y:
           center.y -
           35 +
-          Math.sin(angle) * 105,
+          Math.sin(angle) *
+          112,
 
         directionX:
           Math.cos(angle),
@@ -466,200 +571,235 @@ const SoulVisualizer = {
     return points;
   },
 
-  drawWingRays(
+  drawMusicVisualizer(
     time,
     music,
-    voice,
-    voiceActive,
     neonIntensity
   ) {
-    const context = this.context;
-    const anchors = this.getLogoAnchors();
+    const context =
+      this.context;
+
+    const anchors =
+      this.getLogoAnchors();
 
     const data =
       music.frequencyData;
 
-    const level = voiceActive
-      ? voice.level
-      : music.level;
-
-    if (
-      level < 0.018 &&
-      this.beatFlash < 0.02
-    ) {
+    if (!data) {
       return;
     }
 
-    anchors.forEach((anchor, index) => {
-      const frequencyIndex =
-        data
-          ? Math.floor(
-              index /
-              anchors.length *
-              data.length *
-              0.68
-            )
-          : 0;
+    anchors.forEach(
+      (anchor, index) => {
+        const frequencyIndex =
+          Math.floor(
+            index /
+            anchors.length *
+            data.length *
+            0.68
+          );
 
-      const frequency =
-        data
-          ? data[frequencyIndex] / 255
-          : 0;
+        const frequency =
+          data[
+            frequencyIndex
+          ] / 255;
 
-      const audioPower = voiceActive
-        ? voice.level *
+        const shapedFrequency =
+          Math.pow(
+            frequency,
+            1.2
+          );
+
+        const rayLength =
+          8 +
+          shapedFrequency * 135 +
+          music.bass * 70 +
+          this.beatEnergy * 85;
+
+        const startX =
+          anchor.x +
+          anchor.directionX * 5;
+
+        const startY =
+          anchor.y +
+          anchor.directionY * 5;
+
+        const endX =
+          startX +
+          anchor.directionX *
+          rayLength;
+
+        const endY =
+          startY +
+          anchor.directionY *
+          rayLength;
+
+        const color =
+          this.getRainbowColor(
+            index,
+            time,
+            0.18 +
+            music.level * 0.66
+          );
+
+        context.save();
+
+        context.beginPath();
+
+        context.moveTo(
+          startX,
+          startY
+        );
+
+        context.lineTo(
+          endX,
+          endY
+        );
+
+        context.lineWidth =
+          1.5 +
+          shapedFrequency * 4.8 +
+          this.beatEnergy * 2;
+
+        context.strokeStyle =
+          color;
+
+        context.shadowColor =
+          color;
+
+        context.shadowBlur =
           (
-            0.60 +
-            0.40 *
-            Math.sin(
-              time * 0.012 +
-              index * 0.42
-            )
-          )
-        : frequency;
+            10 +
+            shapedFrequency * 34 +
+            this.beatEnergy * 24
+          ) *
+          neonIntensity;
 
-      const rayLength =
-        10 +
-        audioPower * 125 +
-        music.bass * 65 +
-        this.beatFlash * 80;
+        context.stroke();
 
-      const startX =
-        anchor.x +
-        anchor.directionX * 4;
+        context.restore();
+      }
+    );
+  },
 
-      const startY =
-        anchor.y +
-        anchor.directionY * 4;
+  drawVoiceRays(
+    time,
+    voice,
+    voiceEnergy,
+    neonIntensity
+  ) {
+    const context =
+      this.context;
 
-      const endX =
-        startX +
-        anchor.directionX *
-        rayLength;
+    const anchors =
+      this.getLogoAnchors();
 
-      const endY =
-        startY +
-        anchor.directionY *
-        rayLength;
+    anchors.forEach(
+      (anchor, index) => {
+        const movement =
+          0.5 +
+          0.5 *
+          Math.sin(
+            time * 0.014 +
+            index * 0.38
+          );
 
-      const color = this.getColor(
-        index,
-        time,
-        voiceActive,
-        0.26 + level * 0.66
-      );
-
-      context.save();
-
-      context.beginPath();
-
-      context.moveTo(
-        startX,
-        startY
-      );
-
-      context.lineTo(
-        endX,
-        endY
-      );
-
-      context.lineWidth =
-        1.4 +
-        audioPower * 4.2 +
-        this.beatFlash * 2;
-
-      context.strokeStyle = color;
-      context.shadowColor = color;
-
-      context.shadowBlur =
-        (
+        const length =
           10 +
-          audioPower * 34 +
-          this.beatFlash * 20
-        ) * neonIntensity;
+          voiceEnergy *
+          (
+            45 +
+            movement * 55
+          );
 
-      context.stroke();
-      context.restore();
-    });
+        const startX =
+          anchor.x +
+          anchor.directionX * 7;
+
+        const startY =
+          anchor.y +
+          anchor.directionY * 7;
+
+        const endX =
+          startX +
+          anchor.directionX *
+          length;
+
+        const endY =
+          startY +
+          anchor.directionY *
+          length;
+
+        const color =
+          this.getVoiceColor(
+            index,
+            0.20 +
+            voiceEnergy * 0.76
+          );
+
+        context.save();
+
+        context.beginPath();
+
+        context.moveTo(
+          startX,
+          startY
+        );
+
+        context.lineTo(
+          endX,
+          endY
+        );
+
+        context.lineWidth =
+          1.8 +
+          voiceEnergy * 4.2;
+
+        context.strokeStyle =
+          color;
+
+        context.shadowColor =
+          color;
+
+        context.shadowBlur =
+          (
+            12 +
+            voiceEnergy * 36
+          ) *
+          neonIntensity;
+
+        context.stroke();
+
+        context.restore();
+      }
+    );
   },
 
-  drawDiscEnergy(
+  drawMusicBeams(
     time,
     music,
-    voice,
-    voiceActive
+    neonIntensity
   ) {
-    const context = this.context;
-    const center = this.getCenter();
+    const context =
+      this.context;
 
-    const centerY = center.y - 35;
+    const center =
+      this.getCenter();
 
-    const level = voiceActive
-      ? voice.level
-      : music.level;
-
-    const radius =
-      112 +
-      music.bass * 22 +
-      voice.level * 18 +
-      this.beatFlash * 18;
-
-    for (let layer = 0; layer < 4; layer += 1) {
-      const color = this.getColor(
-        layer * 30,
-        time,
-        voiceActive,
-        0.12 + level * 0.34
+    const bass =
+      Number(
+        music.bass || 0
       );
 
-      context.save();
-
-      context.beginPath();
-
-      context.arc(
-        center.x,
-        centerY,
-        radius + layer * 11,
-        0,
-        Math.PI * 2
-      );
-
-      context.lineWidth =
-        1.5 + layer * 0.7;
-
-      context.strokeStyle = color;
-      context.shadowColor = color;
-
-      context.shadowBlur =
-        12 +
-        level * 36 +
-        layer * 7;
-
-      context.stroke();
-      context.restore();
-    }
-  },
-
-  drawBassBeams(
-    time,
-    music,
-    voice,
-    voiceActive
-  ) {
-    const context = this.context;
-    const center = this.getCenter();
-
-    const power = voiceActive
-      ? voice.bass
-      : music.bass;
-
-    if (power < 0.07) {
+    if (bass < 0.055) {
       return;
     }
 
     const beamCount =
-      12 +
-      Math.round(power * 20);
+      14 +
+      Math.round(
+        bass * 25
+      );
 
     for (
       let index = 0;
@@ -670,17 +810,21 @@ const SoulVisualizer = {
         -Math.PI * 0.92 +
         (
           index /
-          Math.max(1, beamCount - 1)
+          Math.max(
+            1,
+            beamCount - 1
+          )
         ) *
         Math.PI *
         1.84;
 
       const length =
-        130 +
-        power * 310 +
-        this.beatFlash * 170;
+        110 +
+        bass * 370 +
+        this.beatEnergy * 190;
 
-      const startRadius = 175;
+      const startRadius =
+        190;
 
       const startX =
         center.x +
@@ -691,7 +835,7 @@ const SoulVisualizer = {
         center.y +
         Math.sin(angle) *
         startRadius *
-        0.54;
+        0.55;
 
       const endX =
         startX +
@@ -702,14 +846,15 @@ const SoulVisualizer = {
         startY +
         Math.sin(angle) *
         length *
-        0.68;
+        0.70;
 
-      const color = this.getColor(
-        index * 4,
-        time,
-        voiceActive,
-        0.05 + power * 0.26
-      );
+      const color =
+        this.getRainbowColor(
+          index * 5,
+          time,
+          0.04 +
+          bass * 0.28
+        );
 
       context.save();
 
@@ -727,31 +872,120 @@ const SoulVisualizer = {
 
       context.lineWidth =
         1 +
-        power * 2.8;
+        bass * 3.2;
 
-      context.strokeStyle = color;
-      context.shadowColor = color;
+      context.strokeStyle =
+        color;
+
+      context.shadowColor =
+        color;
 
       context.shadowBlur =
-        10 + power * 22;
+        (
+          10 +
+          bass * 26
+        ) *
+        neonIntensity;
 
       context.stroke();
+
       context.restore();
     }
   },
 
-  drawParticles(
+  drawVoicePulse(
     time,
-    music,
-    voice,
-    voiceActive
+    voiceEnergy
   ) {
-    const context = this.context;
-    const center = this.getCenter();
+    const context =
+      this.context;
 
-    const level = voiceActive
-      ? voice.highs
-      : music.highs;
+    const center =
+      this.getCenter();
+
+    const pulse =
+      0.5 +
+      0.5 *
+      Math.sin(
+        time * 0.012
+      );
+
+    const radiusX =
+      320 +
+      voiceEnergy * 55 +
+      pulse * 12;
+
+    const radiusY =
+      175 +
+      voiceEnergy * 36 +
+      pulse * 8;
+
+    for (
+      let layer = 0;
+      layer < 3;
+      layer += 1
+    ) {
+      const color =
+        this.getVoiceColor(
+          layer,
+          0.12 +
+          voiceEnergy * 0.35
+        );
+
+      context.save();
+
+      context.beginPath();
+
+      context.ellipse(
+        center.x,
+        center.y,
+        radiusX +
+        layer * 15,
+        radiusY +
+        layer * 10,
+        0,
+        0,
+        Math.PI * 2
+      );
+
+      context.lineWidth =
+        2 + layer;
+
+      context.strokeStyle =
+        color;
+
+      context.shadowColor =
+        color;
+
+      context.shadowBlur =
+        16 +
+        voiceEnergy * 38;
+
+      context.stroke();
+
+      context.restore();
+    }
+  },
+
+  drawMusicParticles(
+    time,
+    music
+  ) {
+    const context =
+      this.context;
+
+    const center =
+      this.getCenter();
+
+    const highs =
+      Number(
+        music.highs || 0
+      );
+
+    const bass =
+      Number(
+        music.bass || 0
+      );
 
     this.particles.forEach(
       (particle, index) => {
@@ -759,7 +993,7 @@ const SoulVisualizer = {
           particle.speed *
           (
             1 +
-            level * 5
+            highs * 7
           ) *
           16;
 
@@ -772,30 +1006,35 @@ const SoulVisualizer = {
         const distance =
           particle.distance +
           pulse * 22 +
-          level * 80;
+          highs * 100 +
+          this.beatEnergy * 24;
 
         const x =
           center.x +
-          Math.cos(particle.angle) *
+          Math.cos(
+            particle.angle
+          ) *
           distance;
 
         const y =
           center.y +
-          Math.sin(particle.angle) *
+          Math.sin(
+            particle.angle
+          ) *
           distance *
           0.58;
 
         const opacity =
-          0.08 +
-          level * 0.70 +
-          this.beatFlash * 0.22;
+          0.05 +
+          highs * 0.72 +
+          this.beatEnergy * 0.20;
 
-        const color = this.getColor(
-          index * 3,
-          time,
-          voiceActive,
-          opacity
-        );
+        const color =
+          this.getRainbowColor(
+            index * 3,
+            time,
+            opacity
+          );
 
         context.save();
 
@@ -805,134 +1044,136 @@ const SoulVisualizer = {
           x,
           y,
           particle.size +
-          level * 3,
+          highs * 3.5,
           0,
           Math.PI * 2
         );
 
-        context.fillStyle = color;
-        context.shadowColor = color;
+        context.fillStyle =
+          color;
+
+        context.shadowColor =
+          color;
 
         context.shadowBlur =
-          8 + level * 22;
+          8 +
+          highs * 24;
 
         context.fill();
+
         context.restore();
       }
     );
   },
 
   animateLogo(
+    time,
     music,
-    voice,
-    voiceActive
+    voiceEnergy
   ) {
     const logo =
-      document.getElementById("soulLogo");
+      document.getElementById(
+        "soulLogo"
+      );
 
     const halo =
-      document.getElementById("logoHalo");
+      document.getElementById(
+        "logoHalo"
+      );
 
     if (!logo || !halo) {
       return;
     }
 
-    const level = voiceActive
-      ? voice.level
-      : music.level;
+    const musicLevel =
+      Number(
+        music.level || 0
+      );
+
+    const bass =
+      Number(
+        music.bass || 0
+      );
 
     const scale =
       1 +
-      level * 0.035 +
-      music.bass * 0.025 +
-      this.beatFlash * 0.022;
+      musicLevel * 0.025 +
+      bass * 0.025 +
+      voiceEnergy * 0.020 +
+      this.beatEnergy * 0.025;
 
     logo.style.transform =
       `scale(${scale})`;
 
-    if (voiceActive) {
-      logo.style.filter = `
-        drop-shadow(
-          0 16px 30px
-          rgba(0, 0, 0, 0.95)
-        )
-        drop-shadow(
-          0 0 ${18 + voice.level * 42}px
-          rgba(255, 25, 65, 0.92)
-        )
-      `;
+    const hue =
+      (
+        time *
+        0.035
+      ) %
+      360;
 
-      halo.style.background = `
-        radial-gradient(
-          ellipse at center,
-          rgba(
-            255,
-            30,
-            70,
-            ${0.14 + voice.level * 0.26}
-          ),
-          rgba(
-            105,
-            0,
-            26,
-            ${0.08 + voice.level * 0.18}
-          ) 45%,
-          transparent 72%
+    logo.style.filter = `
+      drop-shadow(
+        0 16px 30px
+        rgba(0, 0, 0, 0.95)
+      )
+      drop-shadow(
+        0 0 ${14 + musicLevel * 38}px
+        hsla(
+          ${hue},
+          100%,
+          62%,
+          ${0.25 + musicLevel * 0.62}
         )
-      `;
-    } else {
-      const hue =
-        (
-          performance.now() *
-          0.035
-        ) % 360;
+      )
+      drop-shadow(
+        0 0 ${voiceEnergy * 42}px
+        rgba(
+          255,
+          25,
+          65,
+          ${voiceEnergy * 0.92}
+        )
+      )
+    `;
 
-      logo.style.filter = `
-        drop-shadow(
-          0 16px 30px
-          rgba(0, 0, 0, 0.95)
-        )
-        drop-shadow(
-          0 0 ${14 + music.level * 40}px
-          hsla(
-            ${hue},
-            100%,
-            62%,
-            ${0.30 + music.level * 0.62}
-          )
-        )
-      `;
-
-      halo.style.background = `
-        radial-gradient(
-          ellipse at center,
-          hsla(
-            ${hue},
-            100%,
-            62%,
-            ${0.08 + music.level * 0.20}
-          ),
-          rgba(
-            255,
-            210,
-            80,
-            ${0.05 + music.bass * 0.12}
-          ) 45%,
-          transparent 72%
-        )
-      `;
-    }
+    halo.style.background = `
+      radial-gradient(
+        ellipse at center,
+        hsla(
+          ${hue},
+          100%,
+          62%,
+          ${0.06 + musicLevel * 0.18}
+        ),
+        rgba(
+          255,
+          32,
+          70,
+          ${voiceEnergy * 0.20}
+        ) 45%,
+        transparent 72%
+      )
+    `;
 
     halo.style.transform = `
       translate(-50%, -50%)
-      scale(${1 + level * 0.12})
+      scale(
+        ${
+          1 +
+          musicLevel * 0.08 +
+          voiceEnergy * 0.10
+        }
+      )
     `;
   }
 };
 
-window.SoulVisualizer = SoulVisualizer;
+window.SoulVisualizer =
+  SoulVisualizer;
 
 window.addEventListener(
   "DOMContentLoaded",
-  () => SoulVisualizer.init()
+  () =>
+    SoulVisualizer.init()
 );
