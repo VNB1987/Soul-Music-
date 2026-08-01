@@ -8,41 +8,109 @@ const SoulVisualizer = {
   height: 1080,
 
   logoBox: {
-    x: 565,
-    y: 110,
-    width: 790,
-    height: 520
+    x: 575,
+    y: 105,
+    width: 770,
+    height: 525
   },
 
   particles: [],
+  beatParticles: [],
 
   previousBass: 0,
   beatEnergy: 0,
+  afterglowEnergy: 0,
   voiceEnergy: 0,
+
+  paused: false,
+
+  elements: {},
 
   init() {
     this.canvas =
-      document.getElementById("visualizerCanvas");
+      document.getElementById(
+        "visualizerCanvas"
+      );
 
     if (!this.canvas) {
       console.error(
-        "Nu a fost găsit visualizerCanvas."
+        "visualizerCanvas nu a fost găsit."
       );
 
       return;
     }
 
     this.context =
-      this.canvas.getContext("2d");
+      this.canvas.getContext(
+        "2d"
+      );
 
-    this.canvas.width = this.width;
-    this.canvas.height = this.height;
+    this.canvas.width =
+      this.width;
 
+    this.canvas.height =
+      this.height;
+
+    this.cacheElements();
     this.createParticles();
+    this.bindEvents();
 
-    requestAnimationFrame(
+    window.requestAnimationFrame(
       time => this.animate(time)
     );
+  },
+
+  cacheElements() {
+    this.elements.logo =
+      document.getElementById(
+        "soulLogo"
+      );
+
+    this.elements.logoAmbientGlow =
+      document.getElementById(
+        "logoAmbientGlow"
+      );
+
+    this.elements.logoAfterglow =
+      document.getElementById(
+        "logoAfterglow"
+      );
+
+    this.elements.logoVoiceGlow =
+      document.getElementById(
+        "logoVoiceGlow"
+      );
+  },
+
+  bindEvents() {
+    window.addEventListener(
+      "soulmusic:pause",
+      () => {
+        this.paused = true;
+      }
+    );
+
+    window.addEventListener(
+      "soulmusic:resume",
+      () => {
+        this.paused = false;
+      }
+    );
+
+    window.addEventListener(
+      "soulmusic:reset",
+      () => {
+        this.reset();
+      }
+    );
+  },
+
+  reset() {
+    this.previousBass = 0;
+    this.beatEnergy = 0;
+    this.afterglowEnergy = 0;
+    this.voiceEnergy = 0;
+    this.beatParticles = [];
   },
 
   createParticles() {
@@ -50,7 +118,7 @@ const SoulVisualizer = {
 
     for (
       let index = 0;
-      index < 110;
+      index < 150;
       index += 1
     ) {
       this.particles.push({
@@ -60,35 +128,42 @@ const SoulVisualizer = {
           2,
 
         distance:
-          210 +
+          230 +
           Math.random() *
-          230,
-
-        size:
-          0.8 +
-          Math.random() *
-          3.2,
+          250,
 
         speed:
           0.00015 +
           Math.random() *
-          0.0011,
+          0.00115,
+
+        size:
+          0.7 +
+          Math.random() *
+          3.2,
 
         phase:
           Math.random() *
           Math.PI *
-          2
+          2,
+
+        hueOffset:
+          Math.random() *
+          360
       });
     }
   },
 
   animate(time = 0) {
-    requestAnimationFrame(
+    window.requestAnimationFrame(
       nextTime =>
         this.animate(nextTime)
     );
 
-    if (!window.SoulAudio) {
+    if (
+      this.paused ||
+      !window.SoulAudio
+    ) {
       return;
     }
 
@@ -97,52 +172,36 @@ const SoulVisualizer = {
     const audio =
       SoulAudio.getState();
 
+    const engine =
+      window.EngineX?.getState?.() || {
+        mode: "live",
+        qualityMultiplier: 1,
+
+        preset: {
+          effectMultiplier: 1,
+          speedMultiplier: 1,
+          particleIntensity: 1
+        }
+      };
+
     const music =
       audio.music;
 
     const voice =
       audio.voice;
 
-    const musicLevel =
-      Number(music.level || 0);
-
-    const voiceLevel =
-      Number(voice.level || 0);
-
-    const musicActive =
-      music.active &&
-      (
-        musicLevel > 0.008 ||
-        music.bass > 0.008
+    const musicEnergy =
+      Math.min(
+        1,
+        music.level * 0.78 +
+        music.bass * 0.52 +
+        music.highs * 0.12
       );
 
-    /*
-      Vocea devine vizibilă doar când:
-      1. microfonul este activ;
-      2. nivelul depășește zgomotul ambiental;
-      3. vocea are suficientă intensitate.
-    */
-
-    const voiceThreshold = 0.10;
-
-    const voiceDetected =
-      voice.active &&
-      voiceLevel > voiceThreshold;
-
-    /*
-      Nu înlocuim muzica.
-      Vocea este doar un strat roșu peste muzică.
-    */
-
     const targetVoiceEnergy =
-      voiceDetected
-        ? Math.min(
-            1,
-            (
-              voiceLevel -
-              voiceThreshold
-            ) * 5
-          )
+      voice.active &&
+      voice.detected
+        ? voice.energy
         : 0;
 
     this.voiceEnergy +=
@@ -153,11 +212,21 @@ const SoulVisualizer = {
       (
         targetVoiceEnergy >
         this.voiceEnergy
-          ? 0.32
-          : 0.12
+          ? 0.42
+          : 0.10
       );
 
-    this.detectBeat(music);
+    this.detectBeat(
+      music,
+      engine
+    );
+
+    this.afterglowEnergy =
+      Math.max(
+        musicEnergy,
+        this.afterglowEnergy *
+        0.94
+      );
 
     this.context.clearRect(
       0,
@@ -166,82 +235,124 @@ const SoulVisualizer = {
       this.height
     );
 
-    this.drawBaseHalo(
+    this.drawAmbientHalo(
       time,
-      musicLevel,
-      this.voiceEnergy
+      music,
+      this.voiceEnergy,
+      engine
     );
 
-    if (musicActive) {
-      this.drawMusicVisualizer(
-        time,
-        music,
-        audio.neonIntensity
-      );
+    this.drawLogoContourVisualizer(
+      time,
+      music,
+      this.voiceEnergy,
+      audio,
+      engine
+    );
 
-      this.drawMusicBeams(
-        time,
-        music,
-        audio.neonIntensity
-      );
+    this.drawBassBeams(
+      time,
+      music,
+      this.voiceEnergy,
+      audio,
+      engine
+    );
 
-      this.drawMusicParticles(
-        time,
-        music
-      );
-    }
+    this.drawEnergyWaves(
+      time,
+      music,
+      this.voiceEnergy,
+      audio,
+      engine
+    );
 
-    if (this.voiceEnergy > 0.01) {
-      this.drawVoiceRays(
-        time,
-        voice,
-        this.voiceEnergy,
-        audio.neonIntensity
-      );
+    this.drawOrbitingParticles(
+      time,
+      music,
+      this.voiceEnergy,
+      audio,
+      engine
+    );
 
-      this.drawVoicePulse(
-        time,
-        this.voiceEnergy
-      );
-    }
+    this.drawBeatParticles(
+      time,
+      this.voiceEnergy,
+      engine
+    );
+
+    this.drawVoiceOverlay(
+      time,
+      voice,
+      this.voiceEnergy,
+      audio,
+      engine
+    );
 
     this.animateLogo(
       time,
       music,
-      this.voiceEnergy
+      this.voiceEnergy,
+      engine
     );
+
+    this.beatEnergy *=
+      0.86;
   },
 
-  detectBeat(music) {
+  detectBeat(
+    music,
+    engine
+  ) {
     const bass =
-      Number(music.bass || 0);
+      Number(
+        music.bass || 0
+      );
 
     const difference =
       bass -
       this.previousBass;
 
+    const mode =
+      engine.mode ||
+      "live";
+
+    const threshold =
+      mode === "legendary"
+        ? 0.020
+        : mode === "party"
+          ? 0.027
+          : mode === "calm"
+            ? 0.050
+            : 0.035;
+
     if (
       music.active &&
-      bass > 0.18 &&
-      difference > 0.035
+      bass > 0.16 &&
+      difference > threshold
     ) {
       this.beatEnergy = 1;
+
+      this.createBeatBurst(
+        bass,
+        engine
+      );
     }
 
-    this.previousBass = bass;
-
-    this.beatEnergy *= 0.86;
+    this.previousBass =
+      bass;
   },
 
   getCenter() {
     return {
       x:
         this.logoBox.x +
-        this.logoBox.width / 2,
+        this.logoBox.width /
+        2,
 
       y:
         this.logoBox.y +
-        this.logoBox.height / 2
+        this.logoBox.height /
+        2
     };
   },
 
@@ -253,17 +364,15 @@ const SoulVisualizer = {
     const hue =
       (
         time * 0.045 +
-        index * 6.8
+        index * 5.8
       ) % 360;
 
-    return `
-      hsla(
-        ${hue},
-        100%,
-        64%,
-        ${opacity}
-      )
-    `;
+    return `hsla(
+      ${hue},
+      100%,
+      64%,
+      ${opacity}
+    )`;
   },
 
   getVoiceColor(
@@ -271,10 +380,33 @@ const SoulVisualizer = {
     opacity = 1
   ) {
     const colors = [
-      `rgba(255, 25, 65, ${opacity})`,
-      `rgba(145, 0, 38, ${opacity})`,
-      `rgba(196, 65, 35, ${opacity})`,
-      `rgba(95, 14, 25, ${opacity})`
+      `rgba(
+        255,
+        28,
+        67,
+        ${opacity}
+      )`,
+
+      `rgba(
+        145,
+        0,
+        38,
+        ${opacity}
+      )`,
+
+      `rgba(
+        204,
+        72,
+        35,
+        ${opacity}
+      )`,
+
+      `rgba(
+        88,
+        8,
+        23,
+        ${opacity}
+      )`
     ];
 
     return colors[
@@ -283,10 +415,11 @@ const SoulVisualizer = {
     ];
   },
 
-  drawBaseHalo(
+  drawAmbientHalo(
     time,
-    musicLevel,
-    voiceEnergy
+    music,
+    voiceEnergy,
+    engine
   ) {
     const context =
       this.context;
@@ -296,29 +429,31 @@ const SoulVisualizer = {
 
     const energy =
       Math.max(
-        musicLevel,
-        voiceEnergy
+        music.level,
+        voiceEnergy,
+        this.afterglowEnergy *
+        0.7
       );
 
     const radius =
-      260 +
-      energy * 110 +
-      this.beatEnergy * 35;
-
-    const gradient =
-      context.createRadialGradient(
-        center.x,
-        center.y,
-        20,
-        center.x,
-        center.y,
-        radius
-      );
+      270 +
+      energy * 120 +
+      this.beatEnergy * 45;
 
     const hue =
       (
         time * 0.025
       ) % 360;
+
+    const gradient =
+      context.createRadialGradient(
+        center.x,
+        center.y,
+        25,
+        center.x,
+        center.y,
+        radius
+      );
 
     gradient.addColorStop(
       0,
@@ -326,7 +461,10 @@ const SoulVisualizer = {
         ${hue},
         100%,
         62%,
-        ${0.05 + musicLevel * 0.16}
+        ${
+          0.05 +
+          music.level * 0.18
+        }
       )`
     );
 
@@ -334,20 +472,25 @@ const SoulVisualizer = {
       0.35,
       `rgba(
         255,
-        205,
-        70,
-        ${0.03 + musicLevel * 0.08}
+        214,
+        90,
+        ${
+          0.03 +
+          music.bass * 0.10
+        }
       )`
     );
 
     if (voiceEnergy > 0.01) {
       gradient.addColorStop(
-        0.55,
+        0.58,
         `rgba(
-          150,
+          160,
           0,
-          35,
-          ${voiceEnergy * 0.18}
+          38,
+          ${
+            voiceEnergy * 0.18
+          }
         )`
       );
     }
@@ -389,33 +532,33 @@ const SoulVisualizer = {
 
     for (
       let index = 0;
-      index < 42;
+      index < 48;
       index += 1
     ) {
       const progress =
-        index / 41;
+        index / 47;
 
       points.push({
         x:
           box.x +
-          30 +
-          progress * 315,
+          18 +
+          progress * 320,
 
         y:
           box.y +
-          145 -
+          150 -
           Math.sin(
             progress *
             Math.PI
-          ) * 110,
+          ) * 118,
 
         directionX:
           -1 +
-          progress * 0.42,
+          progress * 0.44,
 
         directionY:
-          -0.55 +
-          progress * 0.72
+          -0.60 +
+          progress * 0.74
       });
     }
 
@@ -425,76 +568,39 @@ const SoulVisualizer = {
 
     for (
       let index = 0;
-      index < 42;
+      index < 48;
       index += 1
     ) {
       const progress =
-        index / 41;
+        index / 47;
 
       points.push({
         x:
           box.x +
           box.width -
-          30 -
-          progress * 315,
+          18 -
+          progress * 320,
 
         y:
           box.y +
-          145 -
+          150 -
           Math.sin(
             progress *
             Math.PI
-          ) * 110,
+          ) * 118,
 
         directionX:
           1 -
-          progress * 0.42,
+          progress * 0.44,
 
         directionY:
-          -0.55 +
-          progress * 0.72
+          -0.60 +
+          progress * 0.74
       });
     }
 
     /*
-      Literele SOUL
-    */
-
-    for (
-      let index = 0;
-      index < 44;
-      index += 1
-    ) {
-      const progress =
-        index / 43;
-
-      points.push({
-        x:
-          box.x +
-          180 +
-          progress * 430,
-
-        y:
-          box.y +
-          245 +
-          Math.sin(
-            progress *
-            Math.PI
-          ) * 18,
-
-        directionX:
-          (
-            progress -
-            0.5
-          ) * 0.65,
-
-        directionY:
-          -0.85
-      });
-    }
-
-    /*
-      Literele MUSIC
+      Zona superioară SOUL
     */
 
     for (
@@ -508,22 +614,59 @@ const SoulVisualizer = {
       points.push({
         x:
           box.x +
-          160 +
-          progress * 470,
+          170 +
+          progress * 430,
 
         y:
           box.y +
-          395 +
+          248 +
           Math.sin(
             progress *
             Math.PI
-          ) * 30,
+          ) * 18,
 
         directionX:
           (
             progress -
             0.5
-          ) * 0.62,
+          ) * 0.72,
+
+        directionY:
+          -0.92
+      });
+    }
+
+    /*
+      Zona inferioară MUSIC
+    */
+
+    for (
+      let index = 0;
+      index < 52;
+      index += 1
+    ) {
+      const progress =
+        index / 51;
+
+      points.push({
+        x:
+          box.x +
+          145 +
+          progress * 480,
+
+        y:
+          box.y +
+          398 +
+          Math.sin(
+            progress *
+            Math.PI
+          ) * 34,
+
+        directionX:
+          (
+            progress -
+            0.5
+          ) * 0.70,
 
         directionY:
           1
@@ -539,12 +682,12 @@ const SoulVisualizer = {
 
     for (
       let index = 0;
-      index < 48;
+      index < 60;
       index += 1
     ) {
       const angle =
         index /
-        48 *
+        60 *
         Math.PI *
         2;
 
@@ -556,7 +699,7 @@ const SoulVisualizer = {
 
         y:
           center.y -
-          35 +
+          32 +
           Math.sin(angle) *
           112,
 
@@ -571,235 +714,179 @@ const SoulVisualizer = {
     return points;
   },
 
-  drawMusicVisualizer(
+  drawLogoContourVisualizer(
     time,
     music,
-    neonIntensity
+    voiceEnergy,
+    audio,
+    engine
   ) {
-    const context =
-      this.context;
-
-    const anchors =
-      this.getLogoAnchors();
-
     const data =
       music.frequencyData;
 
-    if (!data) {
+    if (
+      !music.active ||
+      !data
+    ) {
       return;
     }
 
-    anchors.forEach(
-      (anchor, index) => {
-        const frequencyIndex =
-          Math.floor(
-            index /
-            anchors.length *
-            data.length *
-            0.68
-          );
-
-        const frequency =
-          data[
-            frequencyIndex
-          ] / 255;
-
-        const shapedFrequency =
-          Math.pow(
-            frequency,
-            1.2
-          );
-
-        const rayLength =
-          8 +
-          shapedFrequency * 135 +
-          music.bass * 70 +
-          this.beatEnergy * 85;
-
-        const startX =
-          anchor.x +
-          anchor.directionX * 5;
-
-        const startY =
-          anchor.y +
-          anchor.directionY * 5;
-
-        const endX =
-          startX +
-          anchor.directionX *
-          rayLength;
-
-        const endY =
-          startY +
-          anchor.directionY *
-          rayLength;
-
-        const color =
-          this.getRainbowColor(
-            index,
-            time,
-            0.18 +
-            music.level * 0.66
-          );
-
-        context.save();
-
-        context.beginPath();
-
-        context.moveTo(
-          startX,
-          startY
-        );
-
-        context.lineTo(
-          endX,
-          endY
-        );
-
-        context.lineWidth =
-          1.5 +
-          shapedFrequency * 4.8 +
-          this.beatEnergy * 2;
-
-        context.strokeStyle =
-          color;
-
-        context.shadowColor =
-          color;
-
-        context.shadowBlur =
-          (
-            10 +
-            shapedFrequency * 34 +
-            this.beatEnergy * 24
-          ) *
-          neonIntensity;
-
-        context.stroke();
-
-        context.restore();
-      }
-    );
-  },
-
-  drawVoiceRays(
-    time,
-    voice,
-    voiceEnergy,
-    neonIntensity
-  ) {
     const context =
       this.context;
 
     const anchors =
       this.getLogoAnchors();
 
-    anchors.forEach(
-      (anchor, index) => {
-        const movement =
-          0.5 +
-          0.5 *
-          Math.sin(
-            time * 0.014 +
-            index * 0.38
-          );
+    const preset =
+      engine.preset;
 
-        const length =
+    const qualityMultiplier =
+      engine.qualityMultiplier ||
+      1;
+
+    const step =
+      qualityMultiplier < 0.7
+        ? 2
+        : 1;
+
+    for (
+      let index = 0;
+      index < anchors.length;
+      index += step
+    ) {
+      const anchor =
+        anchors[index];
+
+      const frequencyIndex =
+        Math.floor(
+          index /
+          anchors.length *
+          data.length *
+          0.68
+        );
+
+      const frequency =
+        data[
+          frequencyIndex
+        ] / 255;
+
+      const shapedFrequency =
+        Math.pow(
+          frequency,
+          1.18
+        );
+
+      const rayLength =
+        8 +
+        shapedFrequency *
+        145 *
+        preset.effectMultiplier +
+        music.bass * 72 +
+        this.beatEnergy * 95;
+
+      const startX =
+        anchor.x +
+        anchor.directionX * 5;
+
+      const startY =
+        anchor.y +
+        anchor.directionY * 5;
+
+      const endX =
+        startX +
+        anchor.directionX *
+        rayLength;
+
+      const endY =
+        startY +
+        anchor.directionY *
+        rayLength;
+
+      const color =
+        this.getRainbowColor(
+          index,
+          time,
+          0.18 +
+          music.level * 0.70
+        );
+
+      context.save();
+
+      context.beginPath();
+
+      context.moveTo(
+        startX,
+        startY
+      );
+
+      context.lineTo(
+        endX,
+        endY
+      );
+
+      context.lineWidth =
+        1.4 +
+        shapedFrequency * 5 +
+        this.beatEnergy * 2;
+
+      context.strokeStyle =
+        color;
+
+      context.shadowColor =
+        color;
+
+      context.shadowBlur =
+        (
           10 +
-          voiceEnergy *
-          (
-            45 +
-            movement * 55
-          );
+          shapedFrequency * 38 +
+          this.beatEnergy * 25
+        ) *
+        audio.neonIntensity *
+        preset.effectMultiplier;
 
-        const startX =
-          anchor.x +
-          anchor.directionX * 7;
+      context.stroke();
 
-        const startY =
-          anchor.y +
-          anchor.directionY * 7;
-
-        const endX =
-          startX +
-          anchor.directionX *
-          length;
-
-        const endY =
-          startY +
-          anchor.directionY *
-          length;
-
-        const color =
-          this.getVoiceColor(
-            index,
-            0.20 +
-            voiceEnergy * 0.76
-          );
-
-        context.save();
-
-        context.beginPath();
-
-        context.moveTo(
-          startX,
-          startY
-        );
-
-        context.lineTo(
-          endX,
-          endY
-        );
-
-        context.lineWidth =
-          1.8 +
-          voiceEnergy * 4.2;
-
-        context.strokeStyle =
-          color;
-
-        context.shadowColor =
-          color;
-
-        context.shadowBlur =
-          (
-            12 +
-            voiceEnergy * 36
-          ) *
-          neonIntensity;
-
-        context.stroke();
-
-        context.restore();
-      }
-    );
+      context.restore();
+    }
   },
 
-  drawMusicBeams(
+  drawBassBeams(
     time,
     music,
-    neonIntensity
+    voiceEnergy,
+    audio,
+    engine
   ) {
+    const bass =
+      Number(
+        music.bass || 0
+      );
+
+    if (
+      !music.active ||
+      bass < 0.045
+    ) {
+      return;
+    }
+
     const context =
       this.context;
 
     const center =
       this.getCenter();
 
-    const bass =
-      Number(
-        music.bass || 0
-      );
-
-    if (bass < 0.055) {
-      return;
-    }
+    const mode =
+      engine.mode ||
+      "live";
 
     const beamCount =
-      14 +
-      Math.round(
-        bass * 25
-      );
+      mode === "legendary"
+        ? 42
+        : mode === "party"
+          ? 34
+          : mode === "calm"
+            ? 16
+            : 25;
 
     for (
       let index = 0;
@@ -807,7 +894,7 @@ const SoulVisualizer = {
       index += 1
     ) {
       const angle =
-        -Math.PI * 0.92 +
+        -Math.PI * 0.94 +
         (
           index /
           Math.max(
@@ -816,11 +903,14 @@ const SoulVisualizer = {
           )
         ) *
         Math.PI *
-        1.84;
+        1.88;
 
       const length =
         110 +
-        bass * 370 +
+        bass *
+        390 *
+        engine.preset
+          .effectMultiplier +
         this.beatEnergy * 190;
 
       const startRadius =
@@ -853,7 +943,7 @@ const SoulVisualizer = {
           index * 5,
           time,
           0.04 +
-          bass * 0.28
+          bass * 0.30
         );
 
       context.save();
@@ -872,7 +962,7 @@ const SoulVisualizer = {
 
       context.lineWidth =
         1 +
-        bass * 3.2;
+        bass * 3.4;
 
       context.strokeStyle =
         color;
@@ -883,9 +973,9 @@ const SoulVisualizer = {
       context.shadowBlur =
         (
           10 +
-          bass * 26
+          bass * 28
         ) *
-        neonIntensity;
+        audio.neonIntensity;
 
       context.stroke();
 
@@ -893,9 +983,12 @@ const SoulVisualizer = {
     }
   },
 
-  drawVoicePulse(
+  drawEnergyWaves(
     time,
-    voiceEnergy
+    music,
+    voiceEnergy,
+    audio,
+    engine
   ) {
     const context =
       this.context;
@@ -903,33 +996,52 @@ const SoulVisualizer = {
     const center =
       this.getCenter();
 
-    const pulse =
-      0.5 +
-      0.5 *
-      Math.sin(
-        time * 0.012
-      );
+    const mode =
+      engine.mode ||
+      "live";
 
-    const radiusX =
-      320 +
-      voiceEnergy * 55 +
-      pulse * 12;
-
-    const radiusY =
-      175 +
-      voiceEnergy * 36 +
-      pulse * 8;
+    const waveCount =
+      mode === "legendary"
+        ? 7
+        : mode === "party"
+          ? 5
+          : mode === "calm"
+            ? 2
+            : 4;
 
     for (
       let layer = 0;
-      layer < 3;
+      layer < waveCount;
       layer += 1
     ) {
+      const pulse =
+        0.5 +
+        0.5 *
+        Math.sin(
+          time * 0.0025 *
+          engine.preset
+            .speedMultiplier +
+          layer * 0.9
+        );
+
+      const radiusX =
+        300 +
+        layer * 28 +
+        music.bass * 55 +
+        pulse * 12;
+
+      const radiusY =
+        165 +
+        layer * 16 +
+        music.mids * 32 +
+        pulse * 8;
+
       const color =
-        this.getVoiceColor(
-          layer,
-          0.12 +
-          voiceEnergy * 0.35
+        this.getRainbowColor(
+          layer * 16,
+          time,
+          0.06 +
+          music.level * 0.20
         );
 
       context.save();
@@ -939,17 +1051,16 @@ const SoulVisualizer = {
       context.ellipse(
         center.x,
         center.y,
-        radiusX +
-        layer * 15,
-        radiusY +
-        layer * 10,
+        radiusX,
+        radiusY,
         0,
         0,
         Math.PI * 2
       );
 
       context.lineWidth =
-        2 + layer;
+        1.2 +
+        music.highs * 2;
 
       context.strokeStyle =
         color;
@@ -958,8 +1069,11 @@ const SoulVisualizer = {
         color;
 
       context.shadowBlur =
-        16 +
-        voiceEnergy * 38;
+        (
+          10 +
+          music.level * 22
+        ) *
+        audio.neonIntensity;
 
       context.stroke();
 
@@ -967,9 +1081,12 @@ const SoulVisualizer = {
     }
   },
 
-  drawMusicParticles(
+  drawOrbitingParticles(
     time,
-    music
+    music,
+    voiceEnergy,
+    audio,
+    engine
   ) {
     const context =
       this.context;
@@ -977,195 +1094,632 @@ const SoulVisualizer = {
     const center =
       this.getCenter();
 
-    const highs =
-      Number(
-        music.highs || 0
+    const qualityMultiplier =
+      engine.qualityMultiplier ||
+      1;
+
+    const particleMultiplier =
+      audio.particleIntensity *
+      engine.preset
+        .particleIntensity *
+      qualityMultiplier;
+
+    const desiredCount =
+      Math.min(
+        this.particles.length,
+        Math.round(
+          60 +
+          particleMultiplier * 42
+        )
       );
 
-    const bass =
-      Number(
-        music.bass || 0
-      );
+    for (
+      let index = 0;
+      index < desiredCount;
+      index += 1
+    ) {
+      const particle =
+        this.particles[index];
 
-    this.particles.forEach(
-      (particle, index) => {
-        particle.angle +=
-          particle.speed *
-          (
-            1 +
-            highs * 7
-          ) *
-          16;
+      particle.angle +=
+        particle.speed *
+        (
+          1 +
+          music.highs * 8
+        ) *
+        16 *
+        engine.preset
+          .speedMultiplier;
 
-        const pulse =
-          Math.sin(
-            time * 0.002 +
-            particle.phase
-          );
-
-        const distance =
-          particle.distance +
-          pulse * 22 +
-          highs * 100 +
-          this.beatEnergy * 24;
-
-        const x =
-          center.x +
-          Math.cos(
-            particle.angle
-          ) *
-          distance;
-
-        const y =
-          center.y +
-          Math.sin(
-            particle.angle
-          ) *
-          distance *
-          0.58;
-
-        const opacity =
-          0.05 +
-          highs * 0.72 +
-          this.beatEnergy * 0.20;
-
-        const color =
-          this.getRainbowColor(
-            index * 3,
-            time,
-            opacity
-          );
-
-        context.save();
-
-        context.beginPath();
-
-        context.arc(
-          x,
-          y,
-          particle.size +
-          highs * 3.5,
-          0,
-          Math.PI * 2
+      const pulse =
+        Math.sin(
+          time * 0.002 +
+          particle.phase
         );
 
-        context.fillStyle =
-          color;
+      const distance =
+        particle.distance +
+        pulse * 22 +
+        music.highs * 110 +
+        this.beatEnergy * 28;
 
-        context.shadowColor =
-          color;
+      const x =
+        center.x +
+        Math.cos(
+          particle.angle
+        ) *
+        distance;
 
-        context.shadowBlur =
-          8 +
-          highs * 24;
+      const y =
+        center.y +
+        Math.sin(
+          particle.angle
+        ) *
+        distance *
+        0.58;
 
-        context.fill();
+      const opacity =
+        0.04 +
+        music.highs * 0.76 +
+        this.beatEnergy * 0.22;
 
-        context.restore();
+      const hue =
+        (
+          particle.hueOffset +
+          time * 0.025
+        ) % 360;
+
+      const color =
+        `hsla(
+          ${hue},
+          100%,
+          68%,
+          ${opacity}
+        )`;
+
+      context.save();
+
+      context.beginPath();
+
+      context.arc(
+        x,
+        y,
+        particle.size +
+        music.highs * 3.8,
+        0,
+        Math.PI * 2
+      );
+
+      context.fillStyle =
+        color;
+
+      context.shadowColor =
+        color;
+
+      context.shadowBlur =
+        8 +
+        music.highs * 25;
+
+      context.fill();
+
+      context.restore();
+    }
+  },
+
+  createBeatBurst(
+    bass,
+    engine
+  ) {
+    const center =
+      this.getCenter();
+
+    const count =
+      Math.round(
+        (
+          16 +
+          bass * 36
+        ) *
+        engine.preset
+          .particleIntensity *
+        engine.qualityMultiplier
+      );
+
+    for (
+      let index = 0;
+      index < count;
+      index += 1
+    ) {
+      const angle =
+        Math.random() *
+        Math.PI *
+        2;
+
+      const speed =
+        2 +
+        Math.random() *
+        (
+          5 +
+          bass * 9
+        );
+
+      this.beatParticles.push({
+        x:
+          center.x,
+
+        y:
+          center.y,
+
+        velocityX:
+          Math.cos(angle) *
+          speed,
+
+        velocityY:
+          Math.sin(angle) *
+          speed *
+          0.66,
+
+        size:
+          1 +
+          Math.random() *
+          4,
+
+        life:
+          1,
+
+        decay:
+          0.012 +
+          Math.random() *
+          0.022,
+
+        hue:
+          Math.random() *
+          360
+      });
+    }
+
+    if (
+      this.beatParticles.length >
+      420
+    ) {
+      this.beatParticles.splice(
+        0,
+        this.beatParticles.length -
+        420
+      );
+    }
+  },
+
+  drawBeatParticles(
+    time,
+    voiceEnergy,
+    engine
+  ) {
+    const context =
+      this.context;
+
+    for (
+      let index =
+        this.beatParticles.length -
+        1;
+      index >= 0;
+      index -= 1
+    ) {
+      const particle =
+        this.beatParticles[index];
+
+      particle.x +=
+        particle.velocityX;
+
+      particle.y +=
+        particle.velocityY;
+
+      particle.velocityX *=
+        0.985;
+
+      particle.velocityY *=
+        0.985;
+
+      particle.life -=
+        particle.decay;
+
+      if (
+        particle.life <= 0
+      ) {
+        this.beatParticles.splice(
+          index,
+          1
+        );
+
+        continue;
       }
-    );
+
+      const color =
+        voiceEnergy > 0.02
+          ? `rgba(
+              255,
+              35,
+              70,
+              ${particle.life}
+            )`
+          : `hsla(
+              ${
+                (
+                  particle.hue +
+                  time * 0.04
+                ) %
+                360
+              },
+              100%,
+              66%,
+              ${particle.life}
+            )`;
+
+      context.save();
+
+      context.beginPath();
+
+      context.arc(
+        particle.x,
+        particle.y,
+        particle.size *
+        (
+          0.7 +
+          particle.life
+        ),
+        0,
+        Math.PI * 2
+      );
+
+      context.fillStyle =
+        color;
+
+      context.shadowColor =
+        color;
+
+      context.shadowBlur =
+        10 +
+        particle.life * 24;
+
+      context.fill();
+
+      context.restore();
+    }
+  },
+
+  drawVoiceOverlay(
+    time,
+    voice,
+    voiceEnergy,
+    audio,
+    engine
+  ) {
+    if (
+      voiceEnergy < 0.01
+    ) {
+      return;
+    }
+
+    const context =
+      this.context;
+
+    const anchors =
+      this.getLogoAnchors();
+
+    const step =
+      engine.qualityMultiplier <
+      0.7
+        ? 2
+        : 1;
+
+    for (
+      let index = 0;
+      index < anchors.length;
+      index += step
+    ) {
+      const anchor =
+        anchors[index];
+
+      const movement =
+        0.5 +
+        0.5 *
+        Math.sin(
+          time * 0.014 +
+          index * 0.36
+        );
+
+      const length =
+        10 +
+        voiceEnergy *
+        (
+          48 +
+          movement * 62
+        );
+
+      const startX =
+        anchor.x +
+        anchor.directionX * 7;
+
+      const startY =
+        anchor.y +
+        anchor.directionY * 7;
+
+      const endX =
+        startX +
+        anchor.directionX *
+        length;
+
+      const endY =
+        startY +
+        anchor.directionY *
+        length;
+
+      const color =
+        this.getVoiceColor(
+          index,
+          0.18 +
+          voiceEnergy * 0.78
+        );
+
+      context.save();
+
+      context.beginPath();
+
+      context.moveTo(
+        startX,
+        startY
+      );
+
+      context.lineTo(
+        endX,
+        endY
+      );
+
+      context.lineWidth =
+        1.8 +
+        voiceEnergy * 4.4;
+
+      context.strokeStyle =
+        color;
+
+      context.shadowColor =
+        color;
+
+      context.shadowBlur =
+        (
+          12 +
+          voiceEnergy * 40
+        ) *
+        audio.neonIntensity;
+
+      context.stroke();
+
+      context.restore();
+    }
+
+    const center =
+      this.getCenter();
+
+    for (
+      let layer = 0;
+      layer < 4;
+      layer += 1
+    ) {
+      const pulse =
+        0.5 +
+        0.5 *
+        Math.sin(
+          time * 0.011 +
+          layer
+        );
+
+      const color =
+        this.getVoiceColor(
+          layer,
+          0.10 +
+          voiceEnergy * 0.36
+        );
+
+      context.save();
+
+      context.beginPath();
+
+      context.ellipse(
+        center.x,
+        center.y,
+        320 +
+        layer * 24 +
+        voiceEnergy * 72 +
+        pulse * 10,
+        175 +
+        layer * 14 +
+        voiceEnergy * 44 +
+        pulse * 7,
+        0,
+        0,
+        Math.PI * 2
+      );
+
+      context.lineWidth =
+        1.5 +
+        voiceEnergy * 2.7;
+
+      context.strokeStyle =
+        color;
+
+      context.shadowColor =
+        color;
+
+      context.shadowBlur =
+        (
+          15 +
+          voiceEnergy * 38
+        ) *
+        engine.preset
+          .effectMultiplier;
+
+      context.stroke();
+
+      context.restore();
+    }
   },
 
   animateLogo(
     time,
     music,
-    voiceEnergy
+    voiceEnergy,
+    engine
   ) {
     const logo =
-      document.getElementById(
-        "soulLogo"
-      );
+      this.elements.logo;
 
-    const halo =
-      document.getElementById(
-        "logoHalo"
-      );
+    const ambientGlow =
+      this.elements
+        .logoAmbientGlow;
 
-    if (!logo || !halo) {
+    const afterglow =
+      this.elements
+        .logoAfterglow;
+
+    const voiceGlow =
+      this.elements
+        .logoVoiceGlow;
+
+    if (!logo) {
       return;
     }
 
-    const musicLevel =
-      Number(
-        music.level || 0
-      );
-
-    const bass =
-      Number(
-        music.bass || 0
-      );
-
     const scale =
       1 +
-      musicLevel * 0.025 +
-      bass * 0.025 +
+      music.level * 0.025 +
+      music.bass * 0.028 +
       voiceEnergy * 0.020 +
-      this.beatEnergy * 0.025;
+      this.beatEnergy * 0.026;
 
     logo.style.transform =
       `scale(${scale})`;
 
     const hue =
       (
-        time *
-        0.035
-      ) %
-      360;
+        time * 0.035
+      ) % 360;
 
     logo.style.filter = `
       drop-shadow(
-        0 16px 30px
-        rgba(0, 0, 0, 0.95)
+        0 18px 34px
+        rgba(0, 0, 0, 0.96)
       )
       drop-shadow(
-        0 0 ${14 + musicLevel * 38}px
+        0 0 ${
+          14 +
+          music.level * 42
+        }px
         hsla(
           ${hue},
           100%,
           62%,
-          ${0.25 + musicLevel * 0.62}
+          ${
+            0.24 +
+            music.level * 0.64
+          }
         )
       )
       drop-shadow(
-        0 0 ${voiceEnergy * 42}px
+        0 0 ${
+          voiceEnergy * 44
+        }px
         rgba(
           255,
-          25,
-          65,
-          ${voiceEnergy * 0.92}
+          28,
+          67,
+          ${
+            voiceEnergy * 0.94
+          }
         )
       )
     `;
 
-    halo.style.background = `
-      radial-gradient(
-        ellipse at center,
-        hsla(
-          ${hue},
-          100%,
-          62%,
-          ${0.06 + musicLevel * 0.18}
-        ),
-        rgba(
-          255,
-          32,
-          70,
-          ${voiceEnergy * 0.20}
-        ) 45%,
-        transparent 72%
-      )
-    `;
+    if (ambientGlow) {
+      ambientGlow.style.opacity =
+        String(
+          0.42 +
+          music.level * 0.38
+        );
 
-    halo.style.transform = `
-      translate(-50%, -50%)
-      scale(
-        ${
-          1 +
-          musicLevel * 0.08 +
-          voiceEnergy * 0.10
-        }
-      )
-    `;
+      ambientGlow.style.transform = `
+        translate(-50%, -50%)
+        scale(
+          ${
+            1 +
+            music.level * 0.10 +
+            this.beatEnergy * 0.04
+          }
+        )
+      `;
+
+      ambientGlow.style.background = `
+        radial-gradient(
+          ellipse at center,
+          hsla(
+            ${hue},
+            100%,
+            62%,
+            ${
+              0.07 +
+              music.level * 0.19
+            }
+          ),
+          rgba(
+            255,
+            214,
+            90,
+            ${
+              0.04 +
+              music.bass * 0.12
+            }
+          ) 44%,
+          transparent 72%
+        )
+      `;
+    }
+
+    if (afterglow) {
+      afterglow.style.opacity =
+        String(
+          0.22 +
+          this.afterglowEnergy *
+          0.42
+        );
+
+      afterglow.style.transform = `
+        translate(-50%, -50%)
+        scale(
+          ${
+            1 +
+            this.afterglowEnergy *
+            0.12
+          }
+        )
+      `;
+    }
+
+    if (voiceGlow) {
+      voiceGlow.style.opacity =
+        String(
+          voiceEnergy *
+          0.88
+        );
+
+      voiceGlow.style.transform = `
+        translate(-50%, -50%)
+        scale(
+          ${
+            1 +
+            voiceEnergy *
+            0.14
+          }
+        )
+      `;
+    }
   }
 };
 
@@ -1174,6 +1728,7 @@ window.SoulVisualizer =
 
 window.addEventListener(
   "DOMContentLoaded",
-  () =>
-    SoulVisualizer.init()
+  () => {
+    SoulVisualizer.init();
+  }
 );
