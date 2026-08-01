@@ -7,8 +7,11 @@ const SoulEffects = {
   width: 1920,
   height: 1080,
 
+  paused: false,
+
   musicEnergy: 0,
   voiceEnergy: 0,
+  afterglow: 0,
 
   previousBass: 0,
   bassImpact: 0,
@@ -16,15 +19,17 @@ const SoulEffects = {
   borderPosition: 0,
   tiktokRotation: 0,
 
-  sparks: [],
-  bursts: [],
-  trails: [],
+  ambientParticles: [],
+  burstParticles: [],
+  lightTrails: [],
 
   elements: {},
 
   init() {
     this.canvas =
-      document.getElementById("effectsCanvas");
+      document.getElementById(
+        "effectsCanvas"
+      );
 
     if (!this.canvas) {
       console.error(
@@ -37,89 +42,181 @@ const SoulEffects = {
     this.context =
       this.canvas.getContext("2d");
 
-    this.canvas.width = this.width;
-    this.canvas.height = this.height;
+    this.canvas.width =
+      this.width;
+
+    this.canvas.height =
+      this.height;
 
     this.cacheElements();
-    this.createAmbientSparks();
+    this.createAmbientParticles();
+    this.bindEvents();
 
-    requestAnimationFrame(
+    window.requestAnimationFrame(
       time => this.animate(time)
     );
   },
 
   cacheElements() {
     this.elements.leftFrame =
-      document.getElementById("leftFrame");
+      document.getElementById(
+        "leftFrame"
+      );
 
     this.elements.leftNeon =
       this.elements.leftFrame
-        ?.querySelector(".frame-neon");
+        ?.querySelector(
+          ".frame-neon"
+        );
+
+    this.elements.leftRunner =
+      this.elements.leftFrame
+        ?.querySelector(
+          ".frame-runner"
+        );
 
     this.elements.cameraFrame =
-      document.getElementById("cameraFrame");
+      document.getElementById(
+        "cameraFrame"
+      );
 
     this.elements.cameraNeon =
       this.elements.cameraFrame
-        ?.querySelector(".frame-neon");
+        ?.querySelector(
+          ".frame-neon"
+        );
+
+    this.elements.cameraRunner =
+      this.elements.cameraFrame
+        ?.querySelector(
+          ".frame-runner"
+        );
 
     this.elements.tiktok =
-      document.getElementById("tiktokButton");
+      document.getElementById(
+        "tiktokButton"
+      );
 
-    this.elements.tiktokNeon =
+    this.elements.tiktokOuter =
       this.elements.tiktok
-        ?.querySelector(".button-neon");
+        ?.querySelector(
+          ".button-ring-outer"
+        );
+
+    this.elements.tiktokInner =
+      this.elements.tiktok
+        ?.querySelector(
+          ".button-ring-inner"
+        );
 
     this.elements.live =
-      document.getElementById("liveButton");
+      document.getElementById(
+        "liveButton"
+      );
 
-    this.elements.liveNeon =
+    this.elements.liveOuter =
       this.elements.live
-        ?.querySelector(".button-neon");
+        ?.querySelector(
+          ".button-ring-outer"
+        );
+
+    this.elements.liveInner =
+      this.elements.live
+        ?.querySelector(
+          ".button-ring-inner"
+        );
 
     this.elements.logo =
-      document.getElementById("soulLogo");
+      document.getElementById(
+        "soulLogo"
+      );
+
+    this.elements.stage =
+      document.getElementById(
+        "stage"
+      );
   },
 
-  createAmbientSparks() {
-    this.sparks = [];
+  bindEvents() {
+    window.addEventListener(
+      "soulmusic:pause",
+      () => {
+        this.paused = true;
+      }
+    );
+
+    window.addEventListener(
+      "soulmusic:resume",
+      () => {
+        this.paused = false;
+      }
+    );
+
+    window.addEventListener(
+      "soulmusic:reset",
+      () => {
+        this.reset();
+      }
+    );
+  },
+
+  reset() {
+    this.musicEnergy = 0;
+    this.voiceEnergy = 0;
+    this.afterglow = 0;
+    this.previousBass = 0;
+    this.bassImpact = 0;
+    this.borderPosition = 0;
+    this.tiktokRotation = 0;
+    this.burstParticles = [];
+    this.lightTrails = [];
+  },
+
+  createAmbientParticles() {
+    this.ambientParticles = [];
 
     for (
       let index = 0;
-      index < 90;
+      index < 120;
       index += 1
     ) {
-      this.sparks.push(
-        this.createSpark(true)
+      this.ambientParticles.push(
+        this.createAmbientParticle(
+          true
+        )
       );
     }
   },
 
-  createSpark(initial = false) {
+  createAmbientParticle(
+    initial = false
+  ) {
     return {
       x:
-        550 +
-        Math.random() * 900,
+        520 +
+        Math.random() * 940,
 
       y:
-        90 +
-        Math.random() * 720,
+        initial
+          ? Math.random() * 930
+          : 760 +
+            Math.random() * 220,
 
       velocityX:
-        -0.25 +
-        Math.random() * 0.5,
+        -0.22 +
+        Math.random() * 0.44,
 
       velocityY:
-        -0.55 -
-        Math.random() * 0.85,
+        -0.40 -
+        Math.random() * 0.80,
 
       size:
-        0.7 +
-        Math.random() * 2.7,
+        0.6 +
+        Math.random() * 2.8,
 
       opacity:
         initial
-          ? Math.random() * 0.45
+          ? Math.random() * 0.35
           : 0,
 
       life:
@@ -128,7 +225,7 @@ const SoulEffects = {
       hue:
         Math.random() * 360,
 
-      flicker:
+      phase:
         Math.random() *
         Math.PI *
         2
@@ -136,17 +233,33 @@ const SoulEffects = {
   },
 
   animate(time = 0) {
-    requestAnimationFrame(
+    window.requestAnimationFrame(
       nextTime =>
         this.animate(nextTime)
     );
 
-    if (!window.SoulAudio) {
+    if (
+      this.paused ||
+      !window.SoulAudio
+    ) {
       return;
     }
 
     const audio =
       SoulAudio.getState();
+
+    const engine =
+      window.EngineX
+        ?.getState?.() || {
+          mode: "live",
+          qualityMultiplier: 1,
+
+          preset: {
+            effectMultiplier: 1,
+            speedMultiplier: 1,
+            particleIntensity: 1
+          }
+        };
 
     const music =
       audio.music;
@@ -154,75 +267,69 @@ const SoulEffects = {
     const voice =
       audio.voice;
 
-    const performance =
-      window.EngineV8
-        ?.getPerformanceState?.() || {
-          mode: "live",
-          preset: {
-            effectMultiplier: 1,
-            particleMultiplier: 1,
-            speedMultiplier: 1
-          }
-        };
-
-    const qualityMultiplier =
-      window.EngineV8
-        ?.getQualityMultiplier?.() || 1;
-
-    const preset =
-      performance.preset;
-
-    const musicTarget =
+    const targetMusicEnergy =
       music.active
         ? Math.min(
             1,
-            music.level * 0.9 +
-            music.bass * 0.65 +
-            music.highs * 0.15
+            music.level * 0.72 +
+            music.bass * 0.56 +
+            music.highs * 0.14
           )
         : 0;
 
-    const voiceThreshold =
-      0.105;
-
-    const voiceDetected =
+    const targetVoiceEnergy =
       voice.active &&
-      voice.level >
-        voiceThreshold;
-
-    const voiceTarget =
-      voiceDetected
-        ? Math.min(
-            1,
-            (
-              voice.level -
-              voiceThreshold
-            ) * 5.8
-          )
+      voice.detected
+        ? voice.energy
         : 0;
 
     this.musicEnergy +=
       (
-        musicTarget -
+        targetMusicEnergy -
         this.musicEnergy
-      ) * 0.18;
+      ) * 0.20;
 
     this.voiceEnergy +=
       (
-        voiceTarget -
+        targetVoiceEnergy -
         this.voiceEnergy
       ) *
       (
-        voiceTarget >
+        targetVoiceEnergy >
         this.voiceEnergy
-          ? 0.34
+          ? 0.40
           : 0.10
+      );
+
+    this.afterglow =
+      Math.max(
+        this.musicEnergy,
+        this.voiceEnergy,
+        this.afterglow * 0.94
       );
 
     this.detectBassImpact(
       music,
-      preset
+      engine
     );
+
+    this.borderPosition +=
+      (
+        0.9 +
+        music.highs * 5 +
+        music.bass * 1.8
+      ) *
+      engine.preset
+        .speedMultiplier;
+
+    this.tiktokRotation +=
+      (
+        0.28 +
+        music.highs * 3.2 +
+        music.bass * 1.4
+      ) *
+      engine.preset
+        .speedMultiplier;
 
     this.context.clearRect(
       0,
@@ -231,77 +338,78 @@ const SoulEffects = {
       this.height
     );
 
-    this.borderPosition +=
-      (
-        0.9 +
-        music.highs * 4 +
-        music.bass * 1.5
-      ) *
-      preset.speedMultiplier;
-
-    this.tiktokRotation +=
-      (
-        0.25 +
-        music.highs * 2.8 +
-        music.bass * 1.1
-      ) *
-      preset.speedMultiplier;
+    this.drawStageAmbient(
+      time,
+      music,
+      audio,
+      engine
+    );
 
     this.drawLeftFrame(
       time,
       music,
-      preset,
-      audio.neonIntensity
+      audio,
+      engine
     );
 
     this.drawCameraFrame(
       time,
       music,
-      preset,
-      audio.neonIntensity
+      audio,
+      engine
     );
 
     this.drawTikTokEnergy(
       time,
       music,
-      preset,
-      audio.neonIntensity
+      audio,
+      engine
     );
 
     this.drawLiveEnergy(
       time,
-      preset,
-      audio.neonIntensity
+      audio,
+      engine
     );
 
-    this.drawAmbientSparks(
+    this.drawEnergyConnections(
       time,
       music,
-      preset,
-      qualityMultiplier
+      audio,
+      engine
     );
 
-    this.drawBassBursts(
+    this.drawAmbientParticles(
       time,
       music,
-      preset
+      audio,
+      engine
     );
 
-    this.drawEnergyTrails(
+    this.drawBurstParticles(
+      time,
+      audio,
+      engine
+    );
+
+    this.drawCinematicTrails(
       time,
       music,
-      preset
+      audio,
+      engine
     );
 
-    this.drawVoiceWave(
+    this.drawVoiceShockwave(
       time,
-      preset
+      audio,
+      engine
     );
 
-    this.animateElements(
+    this.animateDomElements(
       time,
       music,
-      preset
+      audio,
+      engine
     );
 
     this.bassImpact *= 0.86;
@@ -309,31 +417,44 @@ const SoulEffects = {
 
   detectBassImpact(
     music,
-    preset
+    engine
   ) {
     const bass =
-      Number(music.bass || 0);
+      Number(
+        music.bass || 0
+      );
 
     const difference =
       bass -
       this.previousBass;
 
+    const mode =
+      engine.mode || "live";
+
     const threshold =
-      window.EngineV8?.mode ===
-      "legendary"
-        ? 0.022
-        : 0.035;
+      mode === "legendary"
+        ? 0.018
+        : mode === "party"
+          ? 0.025
+          : mode === "calm"
+            ? 0.055
+            : 0.034;
 
     if (
       music.active &&
-      bass > 0.16 &&
+      bass > 0.15 &&
       difference > threshold
     ) {
       this.bassImpact = 1;
 
       this.createBassBurst(
         bass,
-        preset
+        engine
+      );
+
+      this.createLightTrail(
+        bass,
+        engine
       );
     }
 
@@ -349,7 +470,7 @@ const SoulEffects = {
     const hue =
       (
         time * 0.05 +
-        index * 28
+        index * 29
       ) % 360;
 
     return `hsla(
@@ -367,29 +488,29 @@ const SoulEffects = {
     const colors = [
       `rgba(
         255,
-        28,
-        67,
+        32,
+        72,
         ${opacity}
       )`,
 
       `rgba(
-        145,
+        150,
         0,
-        38,
+        40,
         ${opacity}
       )`,
 
       `rgba(
-        204,
+        206,
         72,
         35,
         ${opacity}
       )`,
 
       `rgba(
-        84,
-        7,
-        22,
+        92,
+        8,
+        25,
         ${opacity}
       )`
     ];
@@ -450,6 +571,106 @@ const SoulEffects = {
     context.closePath();
   },
 
+  drawStageAmbient(
+    time,
+    music,
+    audio,
+    engine
+  ) {
+    const context =
+      this.context;
+
+    const centerX = 960;
+    const centerY = 390;
+
+    const mode =
+      engine.mode || "live";
+
+    const glowCount =
+      mode === "legendary"
+        ? 5
+        : mode === "party"
+          ? 4
+          : mode === "calm"
+            ? 2
+            : 3;
+
+    for (
+      let layer = 0;
+      layer < glowCount;
+      layer += 1
+    ) {
+      const pulse =
+        0.5 +
+        0.5 *
+        Math.sin(
+          time * 0.0018 +
+          layer
+        );
+
+      const radius =
+        230 +
+        layer * 95 +
+        this.afterglow * 90 +
+        pulse * 20;
+
+      const color =
+        this.voiceEnergy > 0.02
+          ? this.getVoiceColor(
+              layer,
+              0.015 +
+              this.voiceEnergy *
+              0.035
+            )
+          : this.getRainbowColor(
+              layer * 8,
+              time,
+              0.012 +
+              this.afterglow *
+              0.028
+            );
+
+      const gradient =
+        context.createRadialGradient(
+          centerX,
+          centerY,
+          0,
+          centerX,
+          centerY,
+          radius
+        );
+
+      gradient.addColorStop(
+        0,
+        color
+      );
+
+      gradient.addColorStop(
+        1,
+        "rgba(0,0,0,0)"
+      );
+
+      context.save();
+
+      context.fillStyle =
+        gradient;
+
+      context.beginPath();
+
+      context.arc(
+        centerX,
+        centerY,
+        radius,
+        0,
+        Math.PI * 2
+      );
+
+      context.fill();
+
+      context.restore();
+    }
+  },
+
   drawReactiveFrame({
     time,
     x,
@@ -458,32 +679,32 @@ const SoulEffects = {
     height,
     radius,
     music,
-    preset,
-    gold,
-    neonIntensity
+    audio,
+    engine,
+    gold = false
   }) {
     const context =
       this.context;
 
-    const musicEnergy =
-      this.musicEnergy;
-
-    const voiceEnergy =
-      this.voiceEnergy;
-
     const activeEnergy =
       Math.max(
-        musicEnergy,
-        voiceEnergy
+        this.musicEnergy,
+        this.voiceEnergy,
+        this.afterglow * 0.55
       );
 
-    const intensity =
-      neonIntensity *
-      preset.effectMultiplier;
+    const layerCount =
+      engine.mode ===
+      "legendary"
+        ? 6
+        : engine.mode ===
+          "party"
+          ? 5
+          : 4;
 
     for (
       let layer = 0;
-      layer < 5;
+      layer < layerCount;
       layer += 1
     ) {
       const expansion =
@@ -500,12 +721,16 @@ const SoulEffects = {
 
       let color;
 
-      if (voiceEnergy > 0.015) {
+      if (
+        this.voiceEnergy >
+        0.015
+      ) {
         color =
           this.getVoiceColor(
             layer,
-            0.28 +
-            voiceEnergy * 0.66
+            0.25 +
+            this.voiceEnergy *
+            0.68
           );
       } else if (gold) {
         const goldColors = [
@@ -513,28 +738,44 @@ const SoulEffects = {
             255,
             220,
             110,
-            ${0.22 + musicEnergy * 0.60}
+            ${
+              0.22 +
+              this.musicEnergy *
+              0.62
+            }
           )`,
 
           `rgba(
             255,
-            168,
-            32,
-            ${0.18 + musicEnergy * 0.52}
+            170,
+            35,
+            ${
+              0.18 +
+              this.musicEnergy *
+              0.53
+            }
           )`,
 
           `rgba(
             255,
-            248,
-            200,
-            ${0.16 + musicEnergy * 0.46}
+            245,
+            190,
+            ${
+              0.15 +
+              this.musicEnergy *
+              0.45
+            }
           )`,
 
           `rgba(
-            194,
+            192,
             106,
-            15,
-            ${0.15 + musicEnergy * 0.42}
+            16,
+            ${
+              0.14 +
+              this.musicEnergy *
+              0.42
+            }
           )`
         ];
 
@@ -549,7 +790,8 @@ const SoulEffects = {
             layer,
             time,
             0.20 +
-            musicEnergy * 0.64
+            this.musicEnergy *
+            0.66
           );
       }
 
@@ -557,7 +799,7 @@ const SoulEffects = {
 
       context.lineWidth =
         3 +
-        layer * 1.7 +
+        layer * 1.8 +
         activeEnergy * 3;
 
       context.strokeStyle =
@@ -568,30 +810,30 @@ const SoulEffects = {
 
       context.shadowBlur =
         (
-          12 +
-          activeEnergy * 44 +
+          13 +
+          activeEnergy * 46 +
           layer * 9 +
-          this.bassImpact * 16
+          this.bassImpact * 18
         ) *
-        intensity;
+        audio.neonIntensity *
+        engine.preset
+          .effectMultiplier;
 
       context.stroke();
 
       context.restore();
     }
 
-    this.drawFrameRunner({
-      time,
+    this.drawMovingRunner({
       x,
       y,
       width,
       height,
       music,
-      preset,
       gold
     });
 
-    this.drawFramePulses({
+    this.drawFramePulse({
       time,
       x,
       y,
@@ -602,13 +844,12 @@ const SoulEffects = {
     });
   },
 
-  drawFrameRunner({
+  drawMovingRunner({
     x,
     y,
     width,
     height,
     music,
-    preset,
     gold
   }) {
     const context =
@@ -624,15 +865,15 @@ const SoulEffects = {
 
     const runnerLength =
       Math.max(
-        110,
-        width * 0.21
+        100,
+        width * 0.22
       ) *
       (
         1 +
-        music.highs * 0.7
+        music.highs * 0.75
       );
 
-    const point =
+    const segment =
       this.getPerimeterSegment(
         x,
         y,
@@ -644,9 +885,9 @@ const SoulEffects = {
 
     const color =
       this.voiceEnergy > 0.015
-        ? "#ff294f"
+        ? "#ff2952"
         : gold
-          ? "#fff2b0"
+          ? "#fff2ad"
           : "#ffffff";
 
     context.save();
@@ -654,13 +895,13 @@ const SoulEffects = {
     context.beginPath();
 
     context.moveTo(
-      point.startX,
-      point.startY
+      segment.startX,
+      segment.startY
     );
 
     context.lineTo(
-      point.endX,
-      point.endY
+      segment.endX,
+      segment.endY
     );
 
     context.lineWidth =
@@ -677,7 +918,7 @@ const SoulEffects = {
       color;
 
     context.shadowBlur =
-      22 +
+      24 +
       music.highs * 30 +
       this.bassImpact * 20;
 
@@ -699,7 +940,8 @@ const SoulEffects = {
         startX:
           x + position,
 
-        startY: y,
+        startY:
+          y,
 
         endX:
           Math.min(
@@ -709,7 +951,8 @@ const SoulEffects = {
             length
           ),
 
-        endY: y
+        endY:
+          y
       };
     }
 
@@ -780,14 +1023,16 @@ const SoulEffects = {
       height;
 
     return {
-      startX: x,
+      startX:
+        x,
 
       startY:
         y +
         height -
         local,
 
-      endX: x,
+      endX:
+        x,
 
       endY:
         Math.max(
@@ -800,7 +1045,7 @@ const SoulEffects = {
     };
   },
 
-  drawFramePulses({
+  drawFramePulse({
     time,
     x,
     y,
@@ -809,21 +1054,18 @@ const SoulEffects = {
     radius,
     gold
   }) {
-    if (
-      this.bassImpact < 0.05 &&
-      this.voiceEnergy < 0.03
-    ) {
-      return;
-    }
-
-    const context =
-      this.context;
-
     const energy =
       Math.max(
         this.bassImpact,
         this.voiceEnergy
       );
+
+    if (energy < 0.04) {
+      return;
+    }
+
+    const context =
+      this.context;
 
     for (
       let layer = 0;
@@ -834,7 +1076,7 @@ const SoulEffects = {
         energy *
         (
           12 +
-          layer * 10
+          layer * 11
         );
 
       this.roundedRectangle(
@@ -860,7 +1102,7 @@ const SoulEffects = {
                 ${energy * 0.25}
               )`
             : this.getRainbowColor(
-                layer * 10,
+                layer * 9,
                 time,
                 energy * 0.28
               );
@@ -868,7 +1110,8 @@ const SoulEffects = {
       context.save();
 
       context.lineWidth =
-        1.5 + energy * 2;
+        1.5 +
+        energy * 2;
 
       context.strokeStyle =
         color;
@@ -877,7 +1120,8 @@ const SoulEffects = {
         color;
 
       context.shadowBlur =
-        18 + energy * 30;
+        18 +
+        energy * 32;
 
       context.stroke();
 
@@ -888,71 +1132,73 @@ const SoulEffects = {
   drawLeftFrame(
     time,
     music,
-    preset,
-    neonIntensity
+    audio,
+    engine
   ) {
     this.drawReactiveFrame({
       time,
-      x: 24,
+      x: 22,
       y: 18,
       width: 520,
       height: 1044,
       radius: 30,
       music,
-      preset,
-      gold: false,
-      neonIntensity
+      audio,
+      engine,
+      gold: false
     });
   },
 
   drawCameraFrame(
     time,
     music,
-    preset,
-    neonIntensity
+    audio,
+    engine
   ) {
     this.drawReactiveFrame({
       time,
-      x: 1390,
-      y: 505,
-      width: 490,
-      height: 370,
+      x: 1368,
+      y: 470,
+      width: 515,
+      height: 410,
       radius: 30,
       music,
-      preset,
-      gold: true,
-      neonIntensity
+      audio,
+      engine,
+      gold: true
     });
   },
 
   drawTikTokEnergy(
     time,
     music,
-    preset,
-    neonIntensity
+    audio,
+    engine
   ) {
     const context =
       this.context;
 
     const centerX =
-      1665;
+      1672.5;
 
     const centerY =
-      190;
+      177.5;
 
     const baseRadius =
-      118;
+      108;
 
     const mode =
-      window.EngineV8?.mode ||
+      engine.mode ||
       "live";
 
     const rayCount =
       mode === "legendary"
-        ? 120
+        ? 130
         : mode === "party"
-          ? 96
-          : 76;
+          ? 102
+          : mode === "calm"
+            ? 62
+            : 82;
 
     const data =
       music.frequencyData;
@@ -982,17 +1228,18 @@ const SoulEffects = {
 
       const frequency =
         data
-          ? data[frequencyIndex] /
-            255
+          ? data[
+              frequencyIndex
+            ] / 255
           : 0;
 
       const pulse =
-        10 +
-        frequency * 42 +
+        8 +
+        frequency * 44 +
         this.musicEnergy * 30 +
-        music.bass * 22 +
-        this.voiceEnergy * 26 +
-        this.bassImpact * 24;
+        music.bass * 25 +
+        this.voiceEnergy * 28 +
+        this.bassImpact * 28;
 
       const startRadius =
         baseRadius + 7;
@@ -1053,7 +1300,8 @@ const SoulEffects = {
       context.lineWidth =
         1.8 +
         frequency * 4 +
-        this.musicEnergy * 2.5;
+        this.musicEnergy *
+        2.5;
 
       context.strokeStyle =
         color;
@@ -1064,11 +1312,12 @@ const SoulEffects = {
       context.shadowBlur =
         (
           12 +
-          this.musicEnergy * 32 +
-          this.voiceEnergy * 32
+          this.musicEnergy * 34 +
+          this.voiceEnergy * 34
         ) *
-        neonIntensity *
-        preset.effectMultiplier;
+        audio.neonIntensity *
+        engine.preset
+          .effectMultiplier;
 
       context.stroke();
 
@@ -1080,8 +1329,43 @@ const SoulEffects = {
       centerY,
       baseRadius,
       time,
-      preset,
-      neonIntensity
+      audio,
+      engine,
+      false
+    );
+  },
+
+  drawLiveEnergy(
+    time,
+    audio,
+    engine
+  ) {
+    const centerX =
+      1673;
+
+    const centerY =
+      370;
+
+    const idlePulse =
+      0.5 +
+      0.5 *
+      Math.sin(
+        time * 0.0038
+      );
+
+    const radius =
+      75 +
+      idlePulse * 3 +
+      this.voiceEnergy * 22;
+
+    this.drawCircularHalo(
+      centerX,
+      centerY,
+      radius,
+      time,
+      audio,
+      engine,
+      true
     );
   },
 
@@ -1090,38 +1374,56 @@ const SoulEffects = {
     centerY,
     radius,
     time,
-    preset,
-    neonIntensity
+    audio,
+    engine,
+    liveMode
   ) {
     const context =
       this.context;
 
     const energy =
-      Math.max(
-        this.musicEnergy,
-        this.voiceEnergy
-      );
+      liveMode
+        ? Math.max(
+            0.18,
+            this.voiceEnergy
+          )
+        : Math.max(
+            this.musicEnergy,
+            this.voiceEnergy
+          );
+
+    const layers =
+      engine.mode ===
+      "legendary"
+        ? 6
+        : 4;
 
     for (
       let layer = 0;
-      layer < 4;
+      layer < layers;
       layer += 1
     ) {
-      const color =
+      let color;
+
+      if (
+        liveMode ||
         this.voiceEnergy > 0.015
-          ? this.getVoiceColor(
-              layer,
-              0.18 +
-              this.voiceEnergy *
-              0.55
-            )
-          : this.getRainbowColor(
-              layer * 12,
-              time,
-              0.16 +
-              this.musicEnergy *
-              0.54
-            );
+      ) {
+        color =
+          this.getVoiceColor(
+            layer,
+            0.16 +
+            energy * 0.66
+          );
+      } else {
+        color =
+          this.getRainbowColor(
+            layer * 12,
+            time,
+            0.16 +
+            energy * 0.58
+          );
+      }
 
       context.save();
 
@@ -1132,95 +1434,20 @@ const SoulEffects = {
         centerY,
         radius +
         layer * 6 +
-        this.bassImpact * 10,
-        0,
-        Math.PI * 2
-      );
-
-      context.lineWidth =
-        3 + layer * 1.3;
-
-      context.strokeStyle =
-        color;
-
-      context.shadowColor =
-        color;
-
-      context.shadowBlur =
+        this.bassImpact *
         (
-          14 +
-          energy * 32 +
-          this.bassImpact * 20
-        ) *
-        neonIntensity *
-        preset.effectMultiplier;
-
-      context.stroke();
-
-      context.restore();
-    }
-  },
-
-  drawLiveEnergy(
-    time,
-    preset,
-    neonIntensity
-  ) {
-    const context =
-      this.context;
-
-    const centerX =
-      1667.5;
-
-    const centerY =
-      397.5;
-
-    const idlePulse =
-      0.5 +
-      0.5 *
-      Math.sin(
-        time * 0.0035
-      );
-
-    const radius =
-      83 +
-      idlePulse * 3 +
-      this.voiceEnergy * 22;
-
-    for (
-      let layer = 0;
-      layer < 5;
-      layer += 1
-    ) {
-      const opacity =
-        0.16 +
-        idlePulse * 0.08 +
-        this.voiceEnergy *
-        0.72;
-
-      const color =
-        this.getVoiceColor(
-          layer,
-          opacity
-        );
-
-      context.save();
-
-      context.beginPath();
-
-      context.arc(
-        centerX,
-        centerY,
-        radius +
-        layer * 5,
+          liveMode
+            ? 3
+            : 10
+        ),
         0,
         Math.PI * 2
       );
 
       context.lineWidth =
         3 +
-        layer * 1.1 +
-        this.voiceEnergy * 3;
+        layer * 1.2 +
+        energy * 2;
 
       context.strokeStyle =
         color;
@@ -1231,11 +1458,12 @@ const SoulEffects = {
       context.shadowBlur =
         (
           15 +
-          this.voiceEnergy * 46 +
-          idlePulse * 8
+          energy * 38 +
+          this.bassImpact * 18
         ) *
-        neonIntensity *
-        preset.effectMultiplier;
+        audio.neonIntensity *
+        engine.preset
+          .effectMultiplier;
 
       context.stroke();
 
@@ -1245,21 +1473,23 @@ const SoulEffects = {
 
   createBassBurst(
     bass,
-    preset
+    engine
   ) {
     const centerX =
       960;
 
     const centerY =
-      370;
+      375;
 
     const count =
       Math.round(
         (
-          12 +
-          bass * 30
+          14 +
+          bass * 38
         ) *
-        preset.particleMultiplier
+        engine.preset
+          .particleIntensity *
+        engine.qualityMultiplier
       );
 
     for (
@@ -1277,12 +1507,15 @@ const SoulEffects = {
         Math.random() *
         (
           5 +
-          bass * 8
+          bass * 9
         );
 
-      this.bursts.push({
-        x: centerX,
-        y: centerY,
+      this.burstParticles.push({
+        x:
+          centerX,
+
+        y:
+          centerY,
 
         velocityX:
           Math.cos(angle) *
@@ -1291,49 +1524,55 @@ const SoulEffects = {
         velocityY:
           Math.sin(angle) *
           speed *
-          0.65,
+          0.66,
 
         size:
-          1 +
+          0.8 +
           Math.random() * 4,
 
-        life: 1,
+        life:
+          1,
 
         decay:
-          0.014 +
+          0.012 +
           Math.random() *
-          0.018,
+          0.022,
 
         hue:
-          Math.random() * 360
+          Math.random() *
+          360
       });
     }
 
-    if (this.bursts.length > 380) {
-      this.bursts.splice(
+    if (
+      this.burstParticles.length >
+      450
+    ) {
+      this.burstParticles.splice(
         0,
-        this.bursts.length -
-        380
+        this.burstParticles.length -
+        450
       );
     }
   },
 
-  drawBassBursts(
+  drawBurstParticles(
     time,
-    music,
-    preset
+    audio,
+    engine
   ) {
     const context =
       this.context;
 
     for (
       let index =
-        this.bursts.length - 1;
+        this.burstParticles.length -
+        1;
       index >= 0;
       index -= 1
     ) {
       const particle =
-        this.bursts[index];
+        this.burstParticles[index];
 
       particle.x +=
         particle.velocityX;
@@ -1350,8 +1589,10 @@ const SoulEffects = {
       particle.life -=
         particle.decay;
 
-      if (particle.life <= 0) {
-        this.bursts.splice(
+      if (
+        particle.life <= 0
+      ) {
+        this.burstParticles.splice(
           index,
           1
         );
@@ -1364,7 +1605,7 @@ const SoulEffects = {
           ? `rgba(
               255,
               35,
-              70,
+              72,
               ${particle.life}
             )`
           : `hsla(
@@ -1376,7 +1617,7 @@ const SoulEffects = {
                 360
               },
               100%,
-              65%,
+              66%,
               ${particle.life}
             )`;
 
@@ -1403,8 +1644,11 @@ const SoulEffects = {
         color;
 
       context.shadowBlur =
-        10 +
-        particle.life * 22;
+        (
+          10 +
+          particle.life * 24
+        ) *
+        audio.neonIntensity;
 
       context.fill();
 
@@ -1412,20 +1656,33 @@ const SoulEffects = {
     }
   },
 
-  drawAmbientSparks(
+  drawAmbientParticles(
     time,
     music,
-    preset,
-    qualityMultiplier
+    audio,
+    engine
   ) {
     const context =
       this.context;
 
+    const qualityMultiplier =
+      engine.qualityMultiplier ||
+      1;
+
+    const particleMultiplier =
+      audio.particleIntensity *
+      engine.preset
+        .particleIntensity *
+      qualityMultiplier;
+
     const desiredCount =
-      Math.round(
-        this.sparks.length *
-        preset.particleMultiplier *
-        qualityMultiplier
+      Math.min(
+        this.ambientParticles
+          .length,
+        Math.round(
+          45 +
+          particleMultiplier * 30
+        )
       );
 
     for (
@@ -1433,77 +1690,71 @@ const SoulEffects = {
       index < desiredCount;
       index += 1
     ) {
-      const spark =
-        this.sparks[
-          index %
-          this.sparks.length
+      const particle =
+        this.ambientParticles[
+          index
         ];
 
-      spark.x +=
-        spark.velocityX *
-        preset.speedMultiplier;
+      particle.x +=
+        particle.velocityX *
+        engine.preset
+          .speedMultiplier;
 
-      spark.y +=
-        spark.velocityY *
+      particle.y +=
+        particle.velocityY *
         (
-          0.5 +
-          music.highs * 3
+          0.55 +
+          music.highs * 3.4
         ) *
-        preset.speedMultiplier;
+        engine.preset
+          .speedMultiplier;
 
-      spark.life +=
+      particle.life +=
         0.0025 *
-        preset.speedMultiplier;
-
-      spark.opacity =
-        0.07 +
-        music.highs * 0.55 +
-        this.bassImpact * 0.18;
+        engine.preset
+          .speedMultiplier;
 
       if (
-        spark.y < 30 ||
-        spark.x < 500 ||
-        spark.x > 1450 ||
-        spark.life > 1
+        particle.y < 25 ||
+        particle.x < 500 ||
+        particle.x > 1460 ||
+        particle.life > 1
       ) {
         Object.assign(
-          spark,
-          this.createSpark()
+          particle,
+          this.createAmbientParticle()
         );
-
-        spark.y =
-          620 +
-          Math.random() * 250;
-
-        spark.opacity = 0;
-        spark.life = 0;
       }
 
       const flicker =
-        0.55 +
-        0.45 *
+        0.52 +
+        0.48 *
         Math.sin(
           time * 0.004 +
-          spark.flicker
+          particle.phase
         );
 
       const opacity =
-        spark.opacity *
+        (
+          0.04 +
+          music.highs * 0.55 +
+          this.bassImpact * 0.16
+        ) *
         flicker;
 
       const color =
         this.voiceEnergy > 0.02
           ? `rgba(
               255,
-              35,
-              70,
+              36,
+              72,
               ${opacity}
             )`
           : `hsla(
               ${
                 (
-                  spark.hue +
-                  time * 0.02
+                  particle.hue +
+                  time * 0.022
                 ) %
                 360
               },
@@ -1517,9 +1768,9 @@ const SoulEffects = {
       context.beginPath();
 
       context.arc(
-        spark.x,
-        spark.y,
-        spark.size +
+        particle.x,
+        particle.y,
+        particle.size +
         music.highs * 2,
         0,
         Math.PI * 2
@@ -1532,8 +1783,11 @@ const SoulEffects = {
         color;
 
       context.shadowBlur =
-        8 +
-        music.highs * 18;
+        (
+          8 +
+          music.highs * 18
+        ) *
+        audio.neonIntensity;
 
       context.fill();
 
@@ -1541,18 +1795,79 @@ const SoulEffects = {
     }
   },
 
-  drawEnergyTrails(
-    time,
-    music,
-    preset
+  createLightTrail(
+    bass,
+    engine
   ) {
-    const mode =
-      window.EngineV8?.mode ||
-      "live";
+    const count =
+      engine.mode ===
+      "legendary"
+        ? 4
+        : engine.mode ===
+          "party"
+          ? 3
+          : 1;
+
+    for (
+      let index = 0;
+      index < count;
+      index += 1
+    ) {
+      this.lightTrails.push({
+        angle:
+          Math.random() *
+          Math.PI *
+          2,
+
+        radius:
+          180 +
+          Math.random() *
+          90,
+
+        speed:
+          0.016 +
+          Math.random() *
+          0.025,
+
+        length:
+          0.55 +
+          Math.random() *
+          0.75,
+
+        life:
+          1,
+
+        decay:
+          0.012 +
+          Math.random() *
+          0.014,
+
+        hue:
+          Math.random() *
+          360
+      });
+    }
 
     if (
-      mode === "calm" ||
-      this.musicEnergy < 0.08
+      this.lightTrails.length >
+      40
+    ) {
+      this.lightTrails.splice(
+        0,
+        this.lightTrails.length -
+        40
+      );
+    }
+  },
+
+  drawCinematicTrails(
+    time,
+    music,
+    audio,
+    engine
+  ) {
+    if (
+      engine.mode === "calm"
     ) {
       return;
     }
@@ -1564,56 +1879,56 @@ const SoulEffects = {
       960;
 
     const centerY =
-      370;
-
-    const trailCount =
-      mode === "legendary"
-        ? 10
-        : mode === "party"
-          ? 7
-          : 4;
+      375;
 
     for (
-      let index = 0;
-      index < trailCount;
-      index += 1
+      let index =
+        this.lightTrails.length -
+        1;
+      index >= 0;
+      index -= 1
     ) {
-      const phase =
-        time * 0.0015 *
-        preset.speedMultiplier +
-        index *
-        (
-          Math.PI *
-          2 /
-          trailCount
+      const trail =
+        this.lightTrails[index];
+
+      trail.angle +=
+        trail.speed *
+        engine.preset
+          .speedMultiplier;
+
+      trail.life -=
+        trail.decay;
+
+      if (trail.life <= 0) {
+        this.lightTrails.splice(
+          index,
+          1
         );
 
-      const radiusX =
-        310 +
-        index * 18 +
-        music.bass * 50;
-
-      const radiusY =
-        155 +
-        index * 10 +
-        music.mids * 30;
-
-      const startAngle =
-        phase;
-
-      const endAngle =
-        phase +
-        0.65 +
-        music.highs * 0.6;
+        continue;
+      }
 
       const color =
-        this.getRainbowColor(
-          index * 12,
-          time,
-          0.08 +
-          this.musicEnergy *
-          0.22
-        );
+        this.voiceEnergy > 0.02
+          ? this.getVoiceColor(
+              index,
+              trail.life * 0.28
+            )
+          : `hsla(
+              ${
+                (
+                  trail.hue +
+                  time * 0.03
+                ) %
+                360
+              },
+              100%,
+              66%,
+              ${
+                trail.life *
+                0.25
+              }
+            )`;
 
       context.save();
 
@@ -1622,16 +1937,24 @@ const SoulEffects = {
       context.ellipse(
         centerX,
         centerY,
-        radiusX,
-        radiusY,
+        trail.radius +
+        music.bass * 45,
+        (
+          trail.radius +
+          music.mids * 30
+        ) * 0.56,
         0,
-        startAngle,
-        endAngle
+        trail.angle,
+        trail.angle +
+        trail.length
       );
 
       context.lineWidth =
-        1.3 +
-        music.highs * 2;
+        1.2 +
+        music.highs * 2.2;
+
+      context.lineCap =
+        "round";
 
       context.strokeStyle =
         color;
@@ -1640,8 +1963,11 @@ const SoulEffects = {
         color;
 
       context.shadowBlur =
-        12 +
-        this.musicEnergy * 20;
+        (
+          12 +
+          this.musicEnergy * 22
+        ) *
+        audio.neonIntensity;
 
       context.stroke();
 
@@ -1649,12 +1975,128 @@ const SoulEffects = {
     }
   },
 
-  drawVoiceWave(
+  drawEnergyConnections(
     time,
-    preset
+    music,
+    audio,
+    engine
+  ) {
+    const intensity =
+      Math.max(
+        this.musicEnergy,
+        this.voiceEnergy
+      );
+
+    if (
+      intensity < 0.14 ||
+      engine.mode === "calm"
+    ) {
+      return;
+    }
+
+    const context =
+      this.context;
+
+    const logoCenter = {
+      x: 960,
+      y: 375
+    };
+
+    const targets = [
+      {
+        x: 542,
+        y: 210
+      },
+
+      {
+        x: 1368,
+        y: 620
+      },
+
+      {
+        x: 1565,
+        y: 178
+      }
+    ];
+
+    targets.forEach(
+      (target, index) => {
+        const color =
+          this.voiceEnergy > 0.02
+            ? this.getVoiceColor(
+                index,
+                0.04 +
+                this.voiceEnergy *
+                0.15
+              )
+            : this.getRainbowColor(
+                index * 18,
+                time,
+                0.03 +
+                this.musicEnergy *
+                0.12
+              );
+
+        context.save();
+
+        context.beginPath();
+
+        context.moveTo(
+          logoCenter.x,
+          logoCenter.y
+        );
+
+        const controlX =
+          (
+            logoCenter.x +
+            target.x
+          ) / 2;
+
+        const controlY =
+          (
+            logoCenter.y +
+            target.y
+          ) / 2 -
+          85;
+
+        context.quadraticCurveTo(
+          controlX,
+          controlY,
+          target.x,
+          target.y
+        );
+
+        context.lineWidth =
+          1 +
+          intensity * 2;
+
+        context.strokeStyle =
+          color;
+
+        context.shadowColor =
+          color;
+
+        context.shadowBlur =
+          (
+            10 +
+            intensity * 20
+          ) *
+          audio.neonIntensity;
+
+        context.stroke();
+
+        context.restore();
+      }
+    );
+  },
+
+  drawVoiceShockwave(
+    time,
+    audio,
+    engine
   ) {
     if (
-      this.voiceEnergy < 0.015
+      this.voiceEnergy < 0.02
     ) {
       return;
     }
@@ -1666,7 +2108,7 @@ const SoulEffects = {
       960;
 
     const centerY =
-      370;
+      375;
 
     const pulse =
       0.5 +
@@ -1675,31 +2117,34 @@ const SoulEffects = {
         time * 0.011
       );
 
+    const waveCount =
+      engine.mode ===
+      "legendary"
+        ? 5
+        : 3;
+
     for (
       let layer = 0;
-      layer < 4;
+      layer < waveCount;
       layer += 1
     ) {
       const radiusX =
-        320 +
-        layer * 24 +
-        this.voiceEnergy *
-        70 +
+        330 +
+        layer * 28 +
+        this.voiceEnergy * 82 +
         pulse * 12;
 
       const radiusY =
-        175 +
-        layer * 14 +
-        this.voiceEnergy *
-        42 +
+        180 +
+        layer * 16 +
+        this.voiceEnergy * 48 +
         pulse * 8;
 
       const color =
         this.getVoiceColor(
           layer,
-          0.12 +
-          this.voiceEnergy *
-          0.34
+          0.10 +
+          this.voiceEnergy * 0.36
         );
 
       context.save();
@@ -1718,7 +2163,7 @@ const SoulEffects = {
 
       context.lineWidth =
         1.5 +
-        this.voiceEnergy * 2.5;
+        this.voiceEnergy * 2.8;
 
       context.strokeStyle =
         color;
@@ -1729,9 +2174,11 @@ const SoulEffects = {
       context.shadowBlur =
         (
           16 +
-          this.voiceEnergy * 36
+          this.voiceEnergy * 42
         ) *
-        preset.effectMultiplier;
+        audio.neonIntensity *
+        engine.preset
+          .effectMultiplier;
 
       context.stroke();
 
@@ -1739,10 +2186,11 @@ const SoulEffects = {
     }
   },
 
-  animateElements(
+  animateDomElements(
     time,
     music,
-    preset
+    audio,
+    engine
   ) {
     const musicPulse =
       this.musicEnergy;
@@ -1750,35 +2198,44 @@ const SoulEffects = {
     const voicePulse =
       this.voiceEnergy;
 
-    if (this.elements.leftFrame) {
+    if (
+      this.elements.leftFrame
+    ) {
       const scale =
         1 +
-        musicPulse * 0.005 +
-        this.bassImpact * 0.004;
+        musicPulse * 0.004 +
+        this.bassImpact *
+        0.004;
 
       this.elements.leftFrame
         .style.transform =
         `scale(${scale})`;
     }
 
-    if (this.elements.cameraFrame) {
+    if (
+      this.elements.cameraFrame
+    ) {
       const scale =
         1 +
         musicPulse * 0.007 +
-        voicePulse * 0.024 +
-        this.bassImpact * 0.005;
+        voicePulse * 0.023 +
+        this.bassImpact *
+        0.005;
 
       this.elements.cameraFrame
         .style.transform =
         `scale(${scale})`;
     }
 
-    if (this.elements.tiktok) {
+    if (
+      this.elements.tiktok
+    ) {
       const scale =
         1 +
         musicPulse * 0.035 +
         voicePulse * 0.025 +
-        this.bassImpact * 0.02;
+        this.bassImpact *
+        0.020;
 
       const rotation =
         Math.sin(
@@ -1794,7 +2251,9 @@ const SoulEffects = {
         `;
     }
 
-    if (this.elements.live) {
+    if (
+      this.elements.live
+    ) {
       const breathing =
         0.006 *
         (
@@ -1808,7 +2267,7 @@ const SoulEffects = {
       const scale =
         1 +
         breathing +
-        voicePulse * 0.07;
+        voicePulse * 0.075;
 
       this.elements.live
         .style.transform =
@@ -1821,12 +2280,12 @@ const SoulEffects = {
             drop-shadow(
               0 0 ${
                 12 +
-                voicePulse * 42
+                voicePulse * 44
               }px
               rgba(
                 255,
-                25,
-                65,
+                28,
+                67,
                 0.96
               )
             )
@@ -1835,46 +2294,53 @@ const SoulEffects = {
             drop-shadow(
               0 0 10px
               rgba(
-                117,
+                119,
                 0,
-                30,
-                0.40
+                32,
+                0.42
               )
             )
           `;
     }
 
-    this.updateCSSNeon(
+    this.updateCssNeon(
       time,
-      preset
+      engine
+    );
+
+    this.animateCssRunners(
+      time,
+      music
     );
   },
 
-  updateCSSNeon(
+  updateCssNeon(
     time,
-    preset
+    engine
   ) {
     const hue =
       (
         time * 0.045
       ) % 360;
 
-    if (this.elements.leftNeon) {
+    if (
+      this.elements.leftNeon
+    ) {
       this.elements.leftNeon
         .style.opacity =
         String(
           Math.min(
             1,
-            0.45 +
-            this.musicEnergy * 0.45 +
-            this.voiceEnergy * 0.40
+            0.44 +
+            this.musicEnergy * 0.48 +
+            this.voiceEnergy * 0.42
           )
         );
 
       this.elements.leftNeon
         .style.borderColor =
         this.voiceEnergy > 0.015
-          ? "#ff294f"
+          ? "#ff2952"
           : `hsl(
               ${hue},
               100%,
@@ -1882,14 +2348,16 @@ const SoulEffects = {
             )`;
     }
 
-    if (this.elements.cameraNeon) {
+    if (
+      this.elements.cameraNeon
+    ) {
       this.elements.cameraNeon
         .style.opacity =
         String(
           Math.min(
             1,
-            0.55 +
-            this.musicEnergy * 0.30 +
+            0.56 +
+            this.musicEnergy * 0.32 +
             this.voiceEnergy * 0.45
           )
         );
@@ -1897,26 +2365,28 @@ const SoulEffects = {
       this.elements.cameraNeon
         .style.borderColor =
         this.voiceEnergy > 0.015
-          ? "#ff294f"
+          ? "#ff2952"
           : "#ffd96a";
     }
 
-    if (this.elements.tiktokNeon) {
-      this.elements.tiktokNeon
+    if (
+      this.elements.tiktokOuter
+    ) {
+      this.elements.tiktokOuter
         .style.opacity =
         String(
           Math.min(
             1,
             0.46 +
-            this.musicEnergy * 0.44 +
-            this.voiceEnergy * 0.38
+            this.musicEnergy * 0.46 +
+            this.voiceEnergy * 0.42
           )
         );
 
-      this.elements.tiktokNeon
+      this.elements.tiktokOuter
         .style.borderColor =
         this.voiceEnergy > 0.015
-          ? "#ff294f"
+          ? "#ff2952"
           : `hsl(
               ${hue},
               100%,
@@ -1924,8 +2394,21 @@ const SoulEffects = {
             )`;
     }
 
-    if (this.elements.liveNeon) {
-      this.elements.liveNeon
+    if (
+      this.elements.tiktokInner
+    ) {
+      this.elements.tiktokInner
+        .style.transform =
+        `rotate(${
+          -this.tiktokRotation *
+          0.5
+        }deg)`;
+    }
+
+    if (
+      this.elements.liveOuter
+    ) {
+      this.elements.liveOuter
         .style.opacity =
         String(
           Math.min(
@@ -1935,6 +2418,39 @@ const SoulEffects = {
           )
         );
     }
+  },
+
+  animateCssRunners(
+    time,
+    music
+  ) {
+    const position =
+      (
+        time * 0.06 +
+        music.highs * 120
+      ) % 340;
+
+    if (
+      this.elements.leftRunner
+    ) {
+      this.elements.leftRunner
+        .style.transform =
+        `translateX(${position}px)`;
+    }
+
+    if (
+      this.elements.cameraRunner
+    ) {
+      const cameraPosition =
+        (
+          time * 0.052 +
+          music.highs * 100
+        ) % 325;
+
+      this.elements.cameraRunner
+        .style.transform =
+        `translateX(${cameraPosition}px)`;
+    }
   }
 };
 
@@ -1943,5 +2459,7 @@ window.SoulEffects =
 
 window.addEventListener(
   "DOMContentLoaded",
-  () => SoulEffects.init()
+  () => {
+    SoulEffects.init();
+  }
 );
