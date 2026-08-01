@@ -1,19 +1,19 @@
 "use strict";
 
-const EngineV8 = {
+const EngineX = {
   stageWidth: 1920,
   stageHeight: 1080,
 
-  locked: false,
   mode: "live",
   quality: "ultra",
+  locked: false,
 
   fps: 60,
   smoothedFps: 60,
   lastFrameTime: performance.now(),
 
   noticeTimer: null,
-  performanceTimer: null,
+  qualityTimer: null,
 
   elements: {},
 
@@ -22,11 +22,12 @@ const EngineV8 = {
       name: "Calm",
       musicSensitivity: 3.2,
       voiceSensitivity: 4.8,
-      bassSensitivity: 1.4,
-      neonIntensity: 1.15,
-      effectMultiplier: 0.72,
-      particleMultiplier: 0.55,
-      speedMultiplier: 0.75
+      bassSensitivity: 1.3,
+      highSensitivity: 1.1,
+      neonIntensity: 1.1,
+      particleIntensity: 0.65,
+      effectMultiplier: 0.7,
+      speedMultiplier: 0.72
     },
 
     live: {
@@ -34,21 +35,23 @@ const EngineV8 = {
       musicSensitivity: 4.5,
       voiceSensitivity: 6,
       bassSensitivity: 2,
+      highSensitivity: 1.7,
       neonIntensity: 1.6,
+      particleIntensity: 1.3,
       effectMultiplier: 1,
-      particleMultiplier: 1,
       speedMultiplier: 1
     },
 
     party: {
       name: "Party",
-      musicSensitivity: 5.6,
+      musicSensitivity: 5.5,
       voiceSensitivity: 6.4,
       bassSensitivity: 2.7,
+      highSensitivity: 2.3,
       neonIntensity: 2.1,
+      particleIntensity: 1.9,
       effectMultiplier: 1.3,
-      particleMultiplier: 1.35,
-      speedMultiplier: 1.25
+      speedMultiplier: 1.24
     },
 
     legendary: {
@@ -56,10 +59,11 @@ const EngineV8 = {
       musicSensitivity: 6.4,
       voiceSensitivity: 7,
       bassSensitivity: 3.3,
+      highSensitivity: 2.9,
       neonIntensity: 2.65,
-      effectMultiplier: 1.65,
-      particleMultiplier: 1.75,
-      speedMultiplier: 1.45
+      particleIntensity: 2.6,
+      effectMultiplier: 1.7,
+      speedMultiplier: 1.46
     }
   },
 
@@ -67,23 +71,18 @@ const EngineV8 = {
     this.cacheElements();
     this.initializeCanvases();
     this.fitStage();
-    this.bindShortcuts();
+    this.bindWindowEvents();
+    this.bindKeyboardShortcuts();
     this.bindPanelButtons();
     this.setMode("live", false);
     this.startPerformanceMonitor();
 
-    window.addEventListener(
-      "resize",
-      () => this.fitStage()
-    );
-
-    document.addEventListener(
-      "visibilitychange",
-      () => this.handleVisibilityChange()
-    );
-
     this.showNotice(
-      "Soul Music Engine V8 Premium pornit"
+      "Soul Music Engine X a pornit"
+    );
+
+    this.updatePerformanceStatus(
+      "Engine: pregătit"
     );
   },
 
@@ -100,14 +99,29 @@ const EngineV8 = {
     this.elements.shortcutNotice =
       document.getElementById("shortcutNotice");
 
+    this.elements.lockIndicator =
+      document.getElementById("lockIndicator");
+
     this.elements.hidePanel =
       document.getElementById("hidePanel");
+
+    this.elements.toggleFullscreen =
+      document.getElementById("toggleFullscreen");
+
+    this.elements.resetControls =
+      document.getElementById("resetControls");
 
     this.elements.calmMode =
       document.getElementById("calmMode");
 
+    this.elements.liveMode =
+      document.getElementById("liveMode");
+
     this.elements.partyMode =
       document.getElementById("partyMode");
+
+    this.elements.legendaryMode =
+      document.getElementById("legendaryMode");
 
     this.elements.musicSensitivity =
       document.getElementById(
@@ -124,9 +138,34 @@ const EngineV8 = {
         "bassSensitivity"
       );
 
+    this.elements.highSensitivity =
+      document.getElementById(
+        "highSensitivity"
+      );
+
     this.elements.neonIntensity =
       document.getElementById(
         "neonIntensity"
+      );
+
+    this.elements.particleIntensity =
+      document.getElementById(
+        "particleIntensity"
+      );
+
+    this.elements.musicStatus =
+      document.getElementById(
+        "musicStatus"
+      );
+
+    this.elements.voiceStatus =
+      document.getElementById(
+        "voiceStatus"
+      );
+
+    this.elements.performanceStatus =
+      document.getElementById(
+        "performanceStatus"
       );
 
     this.elements.ambientCanvas =
@@ -157,9 +196,93 @@ const EngineV8 = {
         return;
       }
 
-      canvas.width = this.stageWidth;
-      canvas.height = this.stageHeight;
+      canvas.width =
+        this.stageWidth;
+
+      canvas.height =
+        this.stageHeight;
     });
+  },
+
+  bindWindowEvents() {
+    window.addEventListener(
+      "resize",
+      () => this.fitStage()
+    );
+
+    document.addEventListener(
+      "fullscreenchange",
+      () => {
+        window.setTimeout(
+          () => this.fitStage(),
+          80
+        );
+      }
+    );
+
+    document.addEventListener(
+      "visibilitychange",
+      () => {
+        if (document.hidden) {
+          window.dispatchEvent(
+            new CustomEvent(
+              "soulmusic:pause"
+            )
+          );
+        } else {
+          this.lastFrameTime =
+            performance.now();
+
+          this.fitStage();
+
+          window.dispatchEvent(
+            new CustomEvent(
+              "soulmusic:resume"
+            )
+          );
+        }
+      }
+    );
+
+    window.addEventListener(
+      "soulmusic:inputactivated",
+      event => {
+        const type =
+          event.detail?.type;
+
+        if (type === "music") {
+          this.updateMusicStatus(
+            "Muzică: activă"
+          );
+        }
+
+        if (type === "voice") {
+          this.updateVoiceStatus(
+            "Microfon: activ"
+          );
+        }
+      }
+    );
+
+    window.addEventListener(
+      "soulmusic:inputstopped",
+      event => {
+        const type =
+          event.detail?.type;
+
+        if (type === "music") {
+          this.updateMusicStatus(
+            "Muzică: inactivă"
+          );
+        }
+
+        if (type === "voice") {
+          this.updateVoiceStatus(
+            "Microfon: inactiv"
+          );
+        }
+      }
+    );
   },
 
   fitStage() {
@@ -170,13 +293,18 @@ const EngineV8 = {
       window.innerHeight;
 
     const scaleX =
-      viewportWidth / this.stageWidth;
+      viewportWidth /
+      this.stageWidth;
 
     const scaleY =
-      viewportHeight / this.stageHeight;
+      viewportHeight /
+      this.stageHeight;
 
     const scale =
-      Math.min(scaleX, scaleY);
+      Math.min(
+        scaleX,
+        scaleY
+      );
 
     if (!this.elements.stage) {
       return;
@@ -188,7 +316,7 @@ const EngineV8 = {
     `;
   },
 
-  bindShortcuts() {
+  bindKeyboardShortcuts() {
     window.addEventListener(
       "keydown",
       async event => {
@@ -196,14 +324,7 @@ const EngineV8 = {
           event.key.toLowerCase();
 
         if (key === "l") {
-          this.locked = !this.locked;
-
-          this.showNotice(
-            this.locked
-              ? "Comenzile au fost blocate"
-              : "Comenzile au fost deblocate"
-          );
-
+          this.toggleLock();
           return;
         }
 
@@ -217,6 +338,10 @@ const EngineV8 = {
 
         if (key === "f") {
           await this.toggleFullscreen();
+        }
+
+        if (key === "r") {
+          this.resetControls();
         }
 
         if (key === "1") {
@@ -234,10 +359,6 @@ const EngineV8 = {
         if (key === "4") {
           this.setMode("legendary");
         }
-
-        if (key === "r") {
-          this.resetAudioControls();
-        }
       }
     );
   },
@@ -253,16 +374,64 @@ const EngineV8 = {
         }
       );
 
+    this.elements.toggleFullscreen
+      ?.addEventListener(
+        "click",
+        async () => {
+          if (!this.locked) {
+            await this.toggleFullscreen();
+          }
+        }
+      );
+
+    this.elements.resetControls
+      ?.addEventListener(
+        "click",
+        () => {
+          if (!this.locked) {
+            this.resetControls();
+          }
+        }
+      );
+
     this.elements.calmMode
       ?.addEventListener(
         "click",
-        () => this.setMode("calm")
+        () => {
+          if (!this.locked) {
+            this.setMode("calm");
+          }
+        }
+      );
+
+    this.elements.liveMode
+      ?.addEventListener(
+        "click",
+        () => {
+          if (!this.locked) {
+            this.setMode("live");
+          }
+        }
       );
 
     this.elements.partyMode
       ?.addEventListener(
         "click",
-        () => this.setMode("party")
+        () => {
+          if (!this.locked) {
+            this.setMode("party");
+          }
+        }
+      );
+
+    this.elements.legendaryMode
+      ?.addEventListener(
+        "click",
+        () => {
+          if (!this.locked) {
+            this.setMode("legendary");
+          }
+        }
       );
   },
 
@@ -297,11 +466,6 @@ const EngineV8 = {
           "Fullscreen dezactivat"
         );
       }
-
-      window.setTimeout(
-        () => this.fitStage(),
-        120
-      );
     } catch (error) {
       console.error(
         "Fullscreen error:",
@@ -309,12 +473,41 @@ const EngineV8 = {
       );
 
       this.showNotice(
-        "Browserul nu permite fullscreen"
+        "Fullscreen nu este permis"
       );
     }
   },
 
-  setMode(mode, notify = true) {
+  toggleLock() {
+    this.locked =
+      !this.locked;
+
+    document.body.dataset.locked =
+      String(this.locked);
+
+    this.showNotice(
+      this.locked
+        ? "Comenzile au fost blocate"
+        : "Comenzile au fost deblocate"
+    );
+
+    window.dispatchEvent(
+      new CustomEvent(
+        "soulmusic:lockchange",
+        {
+          detail: {
+            locked:
+              this.locked
+          }
+        }
+      )
+    );
+  },
+
+  setMode(
+    mode,
+    notify = true
+  ) {
     const preset =
       this.presets[mode];
 
@@ -322,12 +515,19 @@ const EngineV8 = {
       return;
     }
 
-    this.mode = mode;
+    this.mode =
+      mode;
 
     document.body.dataset.engineMode =
       mode;
 
-    this.applyPreset(preset);
+    this.applyPreset(
+      preset
+    );
+
+    this.updateModeButtons(
+      mode
+    );
 
     window.dispatchEvent(
       new CustomEvent(
@@ -335,7 +535,9 @@ const EngineV8 = {
         {
           detail: {
             mode,
-            preset: { ...preset }
+            preset: {
+              ...preset
+            }
           }
         }
       )
@@ -346,6 +548,30 @@ const EngineV8 = {
         `Mod ${preset.name} activat`
       );
     }
+  },
+
+  updateModeButtons(mode) {
+    const buttons = [
+      this.elements.calmMode,
+      this.elements.liveMode,
+      this.elements.partyMode,
+      this.elements.legendaryMode
+    ];
+
+    buttons.forEach(button => {
+      if (!button) {
+        return;
+      }
+
+      const isActive =
+        button.dataset.mode ===
+        mode;
+
+      button.classList.toggle(
+        "active",
+        isActive
+      );
+    });
   },
 
   applyPreset(preset) {
@@ -365,12 +591,25 @@ const EngineV8 = {
     );
 
     this.setInputValue(
+      this.elements.highSensitivity,
+      preset.highSensitivity
+    );
+
+    this.setInputValue(
       this.elements.neonIntensity,
       preset.neonIntensity
     );
+
+    this.setInputValue(
+      this.elements.particleIntensity,
+      preset.particleIntensity
+    );
   },
 
-  setInputValue(element, value) {
+  setInputValue(
+    element,
+    value
+  ) {
     if (!element) {
       return;
     }
@@ -381,115 +620,60 @@ const EngineV8 = {
     element.dispatchEvent(
       new Event(
         "input",
-        { bubbles: true }
+        {
+          bubbles: true
+        }
       )
     );
   },
 
-  resetAudioControls() {
-    this.setMode("live", false);
+  resetControls() {
+    this.setMode(
+      "live",
+      false
+    );
 
     this.showNotice(
-      "Setările audio au fost resetate"
+      "Setările au fost resetate"
+    );
+
+    window.dispatchEvent(
+      new CustomEvent(
+        "soulmusic:reset"
+      )
     );
   },
 
   getPreset() {
     return (
-      this.presets[this.mode] ||
+      this.presets[
+        this.mode
+      ] ||
       this.presets.live
     );
   },
 
-  getPerformanceState() {
+  getState() {
     return {
-      mode: this.mode,
-      quality: this.quality,
-      fps: this.smoothedFps,
-      locked: this.locked,
+      mode:
+        this.mode,
+
+      quality:
+        this.quality,
+
+      locked:
+        this.locked,
+
+      fps:
+        this.smoothedFps,
+
+      qualityMultiplier:
+        this.getQualityMultiplier(),
+
       preset: {
         ...this.getPreset()
       }
     };
-  },
-
-  startPerformanceMonitor() {
-    const measureFrame = now => {
-      const delta =
-        Math.max(
-          1,
-          now - this.lastFrameTime
-        );
-
-      this.lastFrameTime = now;
-
-      this.fps =
-        1000 / delta;
-
-      this.smoothedFps +=
-        (
-          this.fps -
-          this.smoothedFps
-        ) * 0.08;
-
-      window.requestAnimationFrame(
-        measureFrame
-      );
-    };
-
-    window.requestAnimationFrame(
-      measureFrame
-    );
-
-    this.performanceTimer =
-      window.setInterval(
-        () => this.adjustQuality(),
-        2500
-      );
-  },
-
-  adjustQuality() {
-    const previousQuality =
-      this.quality;
-
-    if (this.smoothedFps < 36) {
-      this.quality = "performance";
-    } else if (
-      this.smoothedFps < 50
-    ) {
-      this.quality = "balanced";
-    } else {
-      this.quality = "ultra";
-    }
-
-    if (
-      previousQuality !==
-      this.quality
-    ) {
-      document.body.dataset.quality =
-        this.quality;
-
-      window.dispatchEvent(
-        new CustomEvent(
-          "soulmusic:qualitychange",
-          {
-            detail: {
-              quality: this.quality,
-              fps: this.smoothedFps
-            }
-          }
-        )
-      );
-
-      if (
-        this.quality ===
-        "performance"
-      ) {
-        this.showNotice(
-          "Optimizare automată activată"
-        );
-      }
-    }
   },
 
   getQualityMultiplier() {
@@ -510,21 +694,136 @@ const EngineV8 = {
     return 1;
   },
 
-  handleVisibilityChange() {
-    const eventName =
-      document.hidden
-        ? "soulmusic:pause"
-        : "soulmusic:resume";
+  startPerformanceMonitor() {
+    const measureFrame =
+      now => {
+        const delta =
+          Math.max(
+            1,
+            now -
+            this.lastFrameTime
+          );
 
-    window.dispatchEvent(
-      new CustomEvent(eventName)
+        this.lastFrameTime =
+          now;
+
+        this.fps =
+          1000 / delta;
+
+        this.smoothedFps +=
+          (
+            this.fps -
+            this.smoothedFps
+          ) * 0.08;
+
+        window.requestAnimationFrame(
+          measureFrame
+        );
+      };
+
+    window.requestAnimationFrame(
+      measureFrame
     );
 
-    if (!document.hidden) {
-      this.lastFrameTime =
-        performance.now();
+    this.qualityTimer =
+      window.setInterval(
+        () => {
+          this.adjustQuality();
+        },
+        2500
+      );
+  },
 
-      this.fitStage();
+  adjustQuality() {
+    const previousQuality =
+      this.quality;
+
+    if (
+      this.smoothedFps <
+      34
+    ) {
+      this.quality =
+        "performance";
+    } else if (
+      this.smoothedFps <
+      49
+    ) {
+      this.quality =
+        "balanced";
+    } else {
+      this.quality =
+        "ultra";
+    }
+
+    document.body.dataset.quality =
+      this.quality;
+
+    const roundedFps =
+      Math.round(
+        this.smoothedFps
+      );
+
+    this.updatePerformanceStatus(
+      `Engine: ${roundedFps} FPS • ${this.quality}`
+    );
+
+    if (
+      previousQuality !==
+      this.quality
+    ) {
+      window.dispatchEvent(
+        new CustomEvent(
+          "soulmusic:qualitychange",
+          {
+            detail: {
+              quality:
+                this.quality,
+
+              fps:
+                roundedFps
+            }
+          }
+        )
+      );
+
+      if (
+        this.quality ===
+        "performance"
+      ) {
+        this.showNotice(
+          "Optimizare automată activată"
+        );
+      }
+    }
+  },
+
+  updateMusicStatus(message) {
+    if (
+      this.elements.musicStatus
+    ) {
+      this.elements.musicStatus
+        .textContent =
+        message;
+    }
+  },
+
+  updateVoiceStatus(message) {
+    if (
+      this.elements.voiceStatus
+    ) {
+      this.elements.voiceStatus
+        .textContent =
+        message;
+    }
+  },
+
+  updatePerformanceStatus(message) {
+    if (
+      this.elements.performanceStatus
+    ) {
+      this.elements.performanceStatus
+        .textContent =
+        message;
     }
   },
 
@@ -559,9 +858,15 @@ const EngineV8 = {
   }
 };
 
-window.EngineV8 = EngineV8;
+window.EngineX =
+  EngineX;
+
+window.EngineV8 =
+  EngineX;
 
 window.addEventListener(
   "DOMContentLoaded",
-  () => EngineV8.init()
+  () => {
+    EngineX.init();
+  }
 );
