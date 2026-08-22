@@ -5,6 +5,13 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <title>DJ Soul — Îngeri și Dans</title>
   <link rel="stylesheet" href="style.css?v=20260807-06">
+  <style>
+    .controls{grid-template-columns:1fr!important;width:min(1120px,94%)!important;padding:22px!important;gap:14px!important}
+    .audio-console{display:grid;gap:12px}.audio-head{display:flex;align-items:center;justify-content:space-between;gap:14px}.audio-head .title{display:flex!important}.audio-head-actions{display:flex;gap:8px;flex-wrap:wrap}
+    .audio-card{display:grid;grid-template-columns:160px minmax(260px,1fr) auto auto;align-items:center;gap:10px;padding:12px;border:1px solid rgba(255,255,255,.11);border-radius:12px;background:rgba(255,255,255,.035)}
+    .audio-card strong{font-size:11px;letter-spacing:.13em}.audio-card select{width:100%;min-width:0}.audio-card .state{min-width:92px;text-align:center;padding:8px 9px;border-radius:8px;border:1px solid rgba(255,255,255,.12);font:700 9px/1 Inter,Segoe UI,sans-serif;letter-spacing:.1em;color:#9ca9bc}.state[data-state="ok"]{color:#68ff9d;border-color:rgba(70,255,145,.45);background:rgba(55,255,130,.08)}.state[data-state="warn"]{color:#ffd66a;border-color:rgba(255,210,80,.42);background:rgba(255,205,70,.08)}.state[data-state="off"]{color:#8b96a8}.audio-help{font-size:10px;color:#8490a6;letter-spacing:.04em;margin-top:-4px}.utility-route{display:flex;justify-content:center;gap:8px;flex-wrap:wrap}.manual-title-route{display:grid!important;grid-template-columns:160px minmax(260px,1fr) auto auto!important}.manual-title-route input{display:block!important;width:100%;border:1px solid rgba(255,255,255,.16);border-radius:8px;background:#090c1b;color:#dce7f6;padding:9px 10px}.dual-meters{margin-top:2px}
+    @media(max-width:900px){.audio-card,.manual-title-route{grid-template-columns:1fr!important}.audio-head{align-items:flex-start;flex-direction:column}.audio-card .state{min-width:0}.controls{max-height:90vh;overflow:auto}}
+  </style>
 </head>
 <body>
   <main id="stage" aria-label="Soul Music RGB Dancers visualizer">
@@ -13,19 +20,58 @@
     <div class="tiktok-corner"><span class="tiktok-note">♪</span><b>TikTok</b><i></i></div>
     <div id="topPrompt" class="top-prompt"></div>
     <span id="musicTitleData" data-live-music-title hidden></span>
-    <div class="status"><span class="dot"></span><span id="statusText">ALEGE SURSA AUDIO</span></div>
+    <div class="status"><span class="dot"></span><span id="statusText">CONFIGURARE AUDIO</span></div>
+
     <section class="controls" aria-label="Control audio" aria-hidden="true">
       <button id="closeControls" class="close-controls" title="Închide meniul">×</button>
-      <div class="title"><b>DJ SOUL — ÎNGERI ȘI DANS</b><span>AUDIO REACTIVE · YOUTUBE · LIVE</span></div>
-      <div id="djSoulYouTubeStatus" class="dj-soul-status" data-state="loading">DJ Soul: se verifică legătura YouTube…</div>
-      <div class="audio-routing">
-        <div class="route music-route"><strong>MUZICĂ RGB</strong><select id="musicDevice" aria-label="Sursă muzică"><option value="">CABLE OUTPUT</option></select><button id="musicBtn">CONECTEAZĂ</button><button id="systemBtn">AUDIO SISTEM</button><label class="file">FIȘIER<input id="musicFile" type="file" accept="audio/*"></label></div>
-        <div class="route output-route"><strong>IEȘIRE AUDIO</strong><select id="outputDevice" aria-label="Ieșire audio"><option value="default">IMPLICIT WINDOWS</option></select><button id="outputBtn">TRIMITE SUNET</button></div>
-        <div class="route mic-route"><strong>MICROFON ROȘU</strong><select id="micDevice" aria-label="Microfon"><option value="">MICROFON</option></select><button id="micBtn">CONECTEAZĂ</button><button id="devicesBtn">REÎNCARCĂ SURSE</button></div>
-        <div class="utility-route"><button id="sceneBtn" class="scene-btn">☁ SCENĂ CELESTĂ</button><button id="demoBtn">✦ DEMO</button><button id="fullscreenBtn" title="Ecran complet">⛶ ECRAN COMPLET</button></div>
+      <div class="audio-console">
+        <div class="audio-head">
+          <div class="title"><b>DJ SOUL — AUDIO LIVE</b><span>MUZICĂ · PLACĂ · MICROFON</span></div>
+          <div class="audio-head-actions">
+            <button id="autoAudioBtn">CONFIGURARE AUTOMATĂ</button>
+            <button id="devicesBtn">REÎNCARCĂ DISPOZITIVE</button>
+          </div>
+        </div>
+
+        <div id="djSoulYouTubeStatus" class="dj-soul-status" data-state="loading">DJ Soul: se verifică legătura YouTube…</div>
+
+        <div class="audio-card">
+          <strong>1 · SURSA MUZICĂ</strong>
+          <select id="musicDevice" aria-label="Sursă muzică"><option value="">Alege sursa audio</option></select>
+          <button id="musicBtn">CONECTEAZĂ</button>
+          <span id="musicState" class="state" data-state="off">NECONECTAT</span>
+        </div>
+
+        <div class="audio-card">
+          <strong>2 · IEȘIRE / PLACĂ</strong>
+          <select id="outputDevice" aria-label="Ieșire audio"><option value="default">Implicit Windows</option></select>
+          <button id="outputBtn">ACTIVEAZĂ</button>
+          <span id="outputState" class="state" data-state="off">IMPLICIT</span>
+        </div>
+
+        <div class="audio-card">
+          <strong>3 · MICROFON</strong>
+          <select id="micDevice" aria-label="Microfon"><option value="">Alege microfonul</option></select>
+          <button id="micBtn">CONECTEAZĂ</button>
+          <span id="micState" class="state" data-state="off">NECONECTAT</span>
+        </div>
+
+        <div class="audio-help">Recomandat pentru configurația ta: muzică = CABLE Output · ieșire = Speakers (S6) · microfon = Microphone (S6). Microfonul nu este redat în boxe, ca să evităm ecoul.</div>
+
+        <div class="utility-route">
+          <button id="outputPickBtn">ALEGE ALTĂ PLACĂ</button>
+          <button id="outputTestBtn">TEST SUNET</button>
+          <button id="systemBtn">CAPTUREAZĂ AUDIO SISTEM</button>
+          <label class="file">FIȘIER MUZICAL<input id="musicFile" type="file" accept="audio/*"></label>
+          <button id="sceneBtn" class="scene-btn">☁ SCENĂ CELESTĂ</button>
+          <button id="demoBtn">✦ DEMO</button>
+          <button id="fullscreenBtn" title="Ecran complet">⛶ ECRAN COMPLET</button>
+        </div>
       </div>
+
       <div class="dual-meters"><div><span>MUZICĂ</span><div class="meter"><i id="musicMeter"></i></div><b id="musicSignal">0%</b></div><div><span>MICROFON</span><div class="meter mic-meter"><i id="micMeter"></i></div><b id="micSignal">0%</b></div></div>
     </section>
+
     <section class="live-banner" aria-live="polite">
       <div class="banner-edge"></div>
       <div id="liveMessage" class="live-message"></div>
@@ -33,9 +79,9 @@
     </section>
     <audio id="player" loop></audio>
   </main>
-  <script src="src/audio-engine.js?v=20260822-02"></script>
+  <script src="src/audio-engine.js?v=20260822-03"></script>
   <script src="src/visual-engine.js?v=20260807-02"></script>
   <script src="src/dj-soul-youtube.js?v=20260822-01"></script>
-  <script src="src/app.js?v=20260822-02"></script>
+  <script src="src/app.js?v=20260822-03"></script>
 </body>
 </html>
