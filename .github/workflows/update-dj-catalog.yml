@@ -27,12 +27,12 @@ jobs:
 
       - name: Commit catalog when changed
         run: |
-          if git diff --quiet -- dj-soul/catalog-dj-soul.json; then
-            echo "Catalog unchanged"
-            exit 0
-          fi
           git config user.name "Soul Music Catalog Bot"
           git config user.email "actions@users.noreply.github.com"
           git add dj-soul/catalog-dj-soul.json
+          if git diff --cached --quiet; then
+            echo "Catalog unchanged"
+            exit 0
+          fi
           git commit -m "Auto-update DJ Soul catalog"
           git push
