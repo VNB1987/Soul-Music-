@@ -12,6 +12,7 @@ OUT = BASE_DIR / "catalog-dj-soul.json"
 INDEX_OUT = BASE_DIR / "catalog-index.jsonl"
 META_OUT = BASE_DIR / "catalog-meta.json"
 CHUNKS_DIR = BASE_DIR / "chunks"
+POSITIONS_DIR = BASE_DIR / "positions"
 CHUNK_SIZE = 50
 
 
@@ -92,6 +93,7 @@ def main():
         "fetchedAt": fetched_at,
         "chunkSize": CHUNK_SIZE,
         "chunkCount": (len(items) + CHUNK_SIZE - 1) // CHUNK_SIZE,
+        "positionFiles": True,
     })
 
     with open(INDEX_OUT, "w", encoding="utf-8") as f:
@@ -99,11 +101,11 @@ def main():
             f.write(json.dumps(item, ensure_ascii=False, separators=(",", ":")) + "\n")
 
     CHUNKS_DIR.mkdir(parents=True, exist_ok=True)
-    expected = set()
+    expected_chunks = set()
     for start in range(0, len(items), CHUNK_SIZE):
         end = min(start + CHUNK_SIZE - 1, len(items) - 1)
         name = f"{start:03d}-{end:03d}.json"
-        expected.add(name)
+        expected_chunks.add(name)
         write_json(CHUNKS_DIR / name, {
             "playlistId": PLAYLIST_ID,
             "fetchedAt": fetched_at,
@@ -113,10 +115,31 @@ def main():
         })
 
     for old_file in CHUNKS_DIR.glob("*.json"):
-        if old_file.name not in expected:
+        if old_file.name not in expected_chunks:
             old_file.unlink()
 
-    print(f"Wrote {len(items)} songs to {OUT}, {INDEX_OUT}, and {len(expected)} chunks")
+    POSITIONS_DIR.mkdir(parents=True, exist_ok=True)
+    expected_positions = set()
+    for item in items:
+        position = item.get("position")
+        if position is None:
+            continue
+        name = f"{position:03d}.json"
+        expected_positions.add(name)
+        write_json(POSITIONS_DIR / name, {
+            "playlistId": PLAYLIST_ID,
+            "fetchedAt": fetched_at,
+            "item": item,
+        })
+
+    for old_file in POSITIONS_DIR.glob("*.json"):
+        if old_file.name not in expected_positions:
+            old_file.unlink()
+
+    print(
+        f"Wrote {len(items)} songs to {OUT}, {INDEX_OUT}, "
+        f"{len(expected_chunks)} chunks and {len(expected_positions)} position files"
+    )
 
 
 if __name__ == "__main__":
