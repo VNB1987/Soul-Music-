@@ -2,17 +2,20 @@ class AudioEngine {
   constructor(player) {
     this.player=player;this.ctx=null;this.elementSource=null;this.mode='idle';
     this.music=this.channel();this.mic=this.channel();
-    this.monitorGain=null;this.monitorEnabled=true;
+    this.monitorGain=null;this.monitorAudio=null;this.monitorDestination=null;this.monitorEnabled=true;
     this.level=0;this.raw=0;this.bass=0;this.mid=0;this.high=0;this.tone=.5;
     this.musicLevel=0;this.micLevel=0;this.musicRaw=0;this.micRaw=0;
   }
   channel(){return{analyser:null,freq:null,time:null,stream:null,source:null,monitor:null,level:0,raw:0,detected:0,peak:0,bass:0,mid:0,high:0,tone:.5,active:false,label:'',voice:false,noiseFloor:.01,calibration:0}}
   checkSupport(){if(!window.isSecureContext||!navigator.mediaDevices?.getUserMedia)throw new Error('AUDIO_REQUIRES_HTTP')}
-  async setup(){if(!this.ctx){const AudioCtx=window.AudioContext||window.webkitAudioContext;if(!AudioCtx)throw new Error('AUDIO_CONTEXT_UNAVAILABLE');this.ctx=new AudioCtx();this.monitorGain=this.ctx.createGain();this.monitorGain.gain.value=this.monitorEnabled?1:0;this.monitorGain.connect(this.ctx.destination)}await this.ctx.resume()}
+  async setup(){if(!this.ctx){const AudioCtx=window.AudioContext||window.webkitAudioContext;if(!AudioCtx)throw new Error('AUDIO_CONTEXT_UNAVAILABLE');this.ctx=new AudioCtx();this.monitorGain=this.ctx.createGain();this.monitorGain.gain.value=this.monitorEnabled?1:0;this.monitorDestination=this.ctx.createMediaStreamDestination();this.monitorGain.connect(this.monitorDestination);this.monitorAudio=new Audio();this.monitorAudio.autoplay=true;this.monitorAudio.srcObject=this.monitorDestination.stream;await this.monitorAudio.play().catch(()=>{})}await this.ctx.resume()}
   prepare(ch){if(ch.analyser)return;ch.analyser=this.ctx.createAnalyser();ch.analyser.fftSize=2048;ch.analyser.smoothingTimeConstant=.68;ch.freq=new Uint8Array(ch.analyser.frequencyBinCount);ch.time=new Uint8Array(ch.analyser.fftSize)}
   stopChannel(ch){try{ch.source?.disconnect()}catch{}try{ch.monitor?.disconnect()}catch{}ch.source=null;ch.monitor=null;ch.stream?.getTracks().forEach(t=>t.stop());ch.stream=null;ch.active=false;ch.level=ch.raw=ch.peak=ch.bass=ch.mid=ch.high=0}
   disconnect(){this.stopChannel(this.music);this.stopChannel(this.mic);this.player.pause();this.mode='idle'}
-  async listDevices(){this.checkSupport();const permission=await navigator.mediaDevices.getUserMedia({audio:true});permission.getTracks().forEach(t=>t.stop());const devices=await navigator.mediaDevices.enumerateDevices();return devices.filter(d=>d.kind==='audioinput')}
+  async listAllDevices(){this.checkSupport();const permission=await navigator.mediaDevices.getUserMedia({audio:true});permission.getTracks().forEach(t=>t.stop());return navigator.mediaDevices.enumerateDevices()}
+  async listDevices(){return (await this.listAllDevices()).filter(d=>d.kind==='audioinput')}
+  async listOutputDevices(){return (await this.listAllDevices()).filter(d=>d.kind==='audiooutput')}
+  async setOutputDevice(deviceId){await this.setup();if(!this.monitorAudio?.setSinkId)throw new Error('OUTPUT_SELECTION_UNSUPPORTED');await this.monitorAudio.setSinkId(deviceId||'default');await this.monitorAudio.play();return this.monitorAudio.sinkId}
   async capture(deviceId,voice=false){const exact=deviceId?{deviceId:{exact:deviceId}}:{};try{return await navigator.mediaDevices.getUserMedia({audio:{...exact,echoCancellation:voice,noiseSuppression:voice,autoGainControl:voice}})}catch{return navigator.mediaDevices.getUserMedia({audio:exact})}}
   connectMonitor(ch){if(!this.monitorGain||!ch.source)return;ch.monitor=this.ctx.createGain();ch.monitor.gain.value=1;ch.source.connect(ch.monitor);ch.monitor.connect(this.monitorGain)}
   async connectDevice(ch,deviceId,label,voice=false){this.checkSupport();await this.setup();this.prepare(ch);this.stopChannel(ch);ch.voice=voice;ch.noiseFloor=.01;ch.calibration=voice?120:0;ch.stream=await this.capture(deviceId,voice);ch.source=this.ctx.createMediaStreamSource(ch.stream);ch.source.connect(ch.analyser);if(!voice)this.connectMonitor(ch);ch.active=true;ch.label=label;this.mode='live';return ch}
