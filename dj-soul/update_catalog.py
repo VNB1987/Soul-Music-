@@ -3,15 +3,27 @@ import os
 import urllib.parse
 import urllib.request
 from datetime import datetime, timezone
+from pathlib import Path
 
 PLAYLIST_ID = "PLedJ9SZ73vniuUjEsj5oPpog0bMWxUbQG"
 API_KEY = os.environ["YOUTUBE_API_KEY"]
-OUT = "dj-soul/catalog-dj-soul.json"
+BASE_DIR = Path("dj-soul")
+OUT = BASE_DIR / "catalog-dj-soul.json"
+INDEX_OUT = BASE_DIR / "catalog-index.jsonl"
+META_OUT = BASE_DIR / "catalog-meta.json"
+CHUNKS_DIR = BASE_DIR / "chunks"
+CHUNK_SIZE = 50
 
 
 def get_json(url):
     with urllib.request.urlopen(url, timeout=30) as r:
         return json.load(r)
+
+
+def write_json(path, payload):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(payload, f, ensure_ascii=False, separators=(",", ":"))
 
 
 def main():
@@ -63,18 +75,48 @@ def main():
             break
 
     items.sort(key=lambda x: (x["position"] is None, x["position"] if x["position"] is not None else 10**9))
+    fetched_at = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
     catalog = {
         "ready": True,
         "playlistId": PLAYLIST_ID,
         "count": len(items),
-        "fetchedAt": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+        "fetchedAt": fetched_at,
         "items": items,
     }
 
-    with open(OUT, "w", encoding="utf-8") as f:
-        json.dump(catalog, f, ensure_ascii=False, separators=(",", ":"))
+    write_json(OUT, catalog)
+    write_json(META_OUT, {
+        "ready": True,
+        "playlistId": PLAYLIST_ID,
+        "count": len(items),
+        "fetchedAt": fetched_at,
+        "chunkSize": CHUNK_SIZE,
+        "chunkCount": (len(items) + CHUNK_SIZE - 1) // CHUNK_SIZE,
+    })
 
-    print(f"Wrote {len(items)} songs to {OUT}")
+    with open(INDEX_OUT, "w", encoding="utf-8") as f:
+        for item in items:
+            f.write(json.dumps(item, ensure_ascii=False, separators=(",", ":")) + "\n")
+
+    CHUNKS_DIR.mkdir(parents=True, exist_ok=True)
+    expected = set()
+    for start in range(0, len(items), CHUNK_SIZE):
+        end = min(start + CHUNK_SIZE - 1, len(items) - 1)
+        name = f"{start:03d}-{end:03d}.json"
+        expected.add(name)
+        write_json(CHUNKS_DIR / name, {
+            "playlistId": PLAYLIST_ID,
+            "fetchedAt": fetched_at,
+            "startPosition": start,
+            "endPosition": end,
+            "items": items[start:start + CHUNK_SIZE],
+        })
+
+    for old_file in CHUNKS_DIR.glob("*.json"):
+        if old_file.name not in expected:
+            old_file.unlink()
+
+    print(f"Wrote {len(items)} songs to {OUT}, {INDEX_OUT}, and {len(expected)} chunks")
 
 
 if __name__ == "__main__":
