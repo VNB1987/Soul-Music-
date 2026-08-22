@@ -32,15 +32,34 @@ const topPrompts=[
   'Trimite LIVE-ul unui prieten care iubește muzica <strong>SOUL MUSIC</strong>.',
   'Pentru o melodie dedicată, scrie titlul și trimite <span class="diamond">◆</span> <strong>100 DIAMANTE</strong>.'
 ];
-const manualTitleRoute=document.createElement('div');manualTitleRoute.className='route manual-title-route';manualTitleRoute.innerHTML='<strong>TITLU TIKTOK</strong><input id="manualMusicTitle" type="text" placeholder="Scrie titlul melodiei curente" autocomplete="off"><button id="setManualTitle">AFIȘEAZĂ</button><button id="clearManualTitle">ȘTERGE</button>';$('.audio-console').appendChild(manualTitleRoute);
-const topPrompt=$('#topPrompt'),musicTitleData=$('#musicTitleData'),manualMusicTitle=$('#manualMusicTitle');let promptIndex=0,nextIsMusicTitle=true,manualTitle=localStorage.getItem('manualMusicTitle')||'';
+const manualTitleRoute=document.createElement('div');manualTitleRoute.className='route manual-title-route';manualTitleRoute.innerHTML='<strong>TITLU LIVE</strong><input id="manualMusicTitle" type="text" placeholder="Titlul se detectează automat; poți suprascrie manual" autocomplete="off"><button id="setManualTitle">AFIȘEAZĂ</button><button id="clearManualTitle">AUTO</button>';$('.audio-console').appendChild(manualTitleRoute);
+const topPrompt=$('#topPrompt'),musicTitleData=$('#musicTitleData'),manualMusicTitle=$('#manualMusicTitle');let promptIndex=0,nextIsMusicTitle=true,manualTitle=localStorage.getItem('manualMusicTitle')||'',autoMediaTitle='';
 manualMusicTitle.value=manualTitle;
-const currentMusicTitle=()=>manualTitle||musicTitleData.textContent.trim();
+const currentMusicTitle=()=>manualTitle||autoMediaTitle||musicTitleData.textContent.trim();
 function showPrompt(){topPrompt.classList.remove('show');setTimeout(()=>{const title=currentMusicTitle(),showTitle=Boolean(title&&nextIsMusicTitle),content=document.createElement('span');content.className=showTitle?'prompt-content track-title':'prompt-content';if(showTitle){content.textContent=title;nextIsMusicTitle=false}else{content.innerHTML=topPrompts[promptIndex];promptIndex=(promptIndex+1)%topPrompts.length;if(title)nextIsMusicTitle=true}topPrompt.replaceChildren(content);topPrompt.classList.toggle('music-mode',showTitle);topPrompt.classList.add('show')},600)}
 showPrompt();setInterval(showPrompt,10000);
 $('#setManualTitle').onclick=()=>{manualTitle=manualMusicTitle.value.trim();if(!manualTitle)return;localStorage.setItem('manualMusicTitle',manualTitle);nextIsMusicTitle=true;showPrompt();status.textContent='TITLU MANUAL ACTIV'};
-$('#clearManualTitle').onclick=()=>{manualTitle='';manualMusicTitle.value='';musicTitleData.textContent='';localStorage.removeItem('manualMusicTitle');nextIsMusicTitle=false;showPrompt();status.textContent='TITLU ȘTERS'};
+$('#clearManualTitle').onclick=()=>{manualTitle='';manualMusicTitle.value='';localStorage.removeItem('manualMusicTitle');nextIsMusicTitle=Boolean(autoMediaTitle);showPrompt();status.textContent=autoMediaTitle?'TITLU AUTOMAT ACTIV':'AȘTEPT TITLUL MELODIEI'};
 manualMusicTitle.addEventListener('keydown',e=>{if(e.key==='Enter')$('#setManualTitle').click()});
+
+let mediaPollBusy=false,lastMediaTitle='';
+function setAutomaticMediaTitle(title){
+  const clean=String(title||'').replace(/\s+/g,' ').trim();
+  if(clean===lastMediaTitle)return;
+  lastMediaTitle=clean;autoMediaTitle=clean;musicTitleData.textContent=clean;
+  if(clean&&!manualTitle){nextIsMusicTitle=true;showPrompt();status.textContent=`TITLU AUTOMAT: ${clean}`}
+}
+async function pollCurrentMedia(){
+  if(mediaPollBusy||location.protocol==='file:')return;
+  mediaPollBusy=true;
+  try{
+    const response=await fetch(`/api/media/current?t=${Date.now()}`,{cache:'no-store'});
+    if(!response.ok)return;
+    const media=await response.json();
+    if(media?.ready&&media?.playing&&media?.title)setAutomaticMediaTitle(media.title);
+  }catch{}finally{mediaPollBusy=false}
+}
+pollCurrentMedia();setInterval(pollCurrentMedia,1500);
 
 const controls=$('.controls'),musicDevice=$('#musicDevice'),micDevice=$('#micDevice'),outputDevice=$('#outputDevice');
 const musicState=$('#musicState'),micState=$('#micState'),outputState=$('#outputState');
@@ -151,6 +170,5 @@ status.textContent=location.protocol==='file:'?'DESCHIDE PRIN PORNESTE-LIVE-CURA
 
 window.addEventListener('djsoul:youtubeplaylistready',event=>{
   const state=event.detail||{};
-  if(!manualTitle){musicTitleData.textContent='';nextIsMusicTitle=false}
-  if(state.ready)status.textContent=status.textContent||`CATALOG YOUTUBE CONECTAT · ${state.count||0} MELODII`;
+  if(state.ready&& !status.textContent)status.textContent=`CATALOG YOUTUBE CONECTAT · ${state.count||0} MELODII`;
 });
