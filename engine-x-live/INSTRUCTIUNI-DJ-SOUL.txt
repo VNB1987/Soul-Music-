@@ -1,0 +1,25 @@
+DJ SOUL — ÎNGERI ȘI DANS
+=========================
+
+PRIMA PORNIRE
+
+1. Dublu-click pe configure-dj-soul.bat.
+2. Lipește cheia YouTube API. Pe ecran apare doar un asterisc; este normal.
+3. La Playlist ID apasă Enter pentru playlistul Soul Music deja configurat.
+4. Dublu-click pe PORNESTE-DJ-SOUL.bat.
+
+PORNIRILE URMĂTOARE
+
+Rulează numai PORNESTE-DJ-SOUL.bat.
+
+VERIFICARE
+
+Deschide panoul de control cu tasta C. Mesajul verde trebuie să spună:
+DJ Soul: YouTube conectat • [număr] melodii
+
+IMPORTANT
+
+- Nu publica fișierul ascuns dj-soul.local.json.
+- Nu trimite cheia API în capturi de ecran.
+- Proiectul folosește adresa http://127.0.0.1:8988/.
+- Închide fereastra serverului pentru a opri proiectul.

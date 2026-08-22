@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="ro">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>DJ Soul — Îngeri și Dans</title>
+  <link rel="stylesheet" href="style.css?v=20260807-06">
+</head>
+<body>
+  <main id="stage" aria-label="Soul Music RGB Dancers visualizer">
+    <canvas id="visuals" width="1920" height="1080"></canvas>
+    <div class="live-corner"><span class="rec-dot"></span><b>LIVE</b><small>REC</small></div>
+    <div class="tiktok-corner"><span class="tiktok-note">♪</span><b>TikTok</b><i></i></div>
+    <div id="topPrompt" class="top-prompt"></div>
+    <span id="musicTitleData" data-live-music-title hidden></span>
+    <div class="status"><span class="dot"></span><span id="statusText">ALEGE SURSA AUDIO</span></div>
+    <section class="controls" aria-label="Control audio" aria-hidden="true">
+      <button id="closeControls" class="close-controls" title="Închide meniul">×</button>
+      <div class="title"><b>DJ SOUL — ÎNGERI ȘI DANS</b><span>AUDIO REACTIVE · YOUTUBE · LIVE</span></div>
+      <div id="djSoulYouTubeStatus" class="dj-soul-status" data-state="loading">DJ Soul: se verifică legătura YouTube…</div>
+      <div class="audio-routing">
+        <div class="route music-route"><strong>MUZICĂ RGB</strong><select id="musicDevice" aria-label="Sursă muzică"><option value="">CABLE OUTPUT</option></select><button id="musicBtn">CONECTEAZĂ</button><button id="systemBtn">AUDIO SISTEM</button><label class="file">FIȘIER<input id="musicFile" type="file" accept="audio/*"></label></div>
+        <div class="route mic-route"><strong>MICROFON ROȘU</strong><select id="micDevice" aria-label="Microfon"><option value="">MICROFON</option></select><button id="micBtn">CONECTEAZĂ</button><button id="devicesBtn">REÎNCARCĂ SURSE</button></div>
+        <div class="utility-route"><button id="sceneBtn" class="scene-btn">☁ SCENĂ CELESTĂ</button><button id="demoBtn">✦ DEMO</button><button id="fullscreenBtn" title="Ecran complet">⛶ ECRAN COMPLET</button></div>
+      </div>
+      <div class="dual-meters"><div><span>MUZICĂ</span><div class="meter"><i id="musicMeter"></i></div><b id="musicSignal">0%</b></div><div><span>MICROFON</span><div class="meter mic-meter"><i id="micMeter"></i></div><b id="micSignal">0%</b></div></div>
+    </section>
+    <section class="live-banner" aria-live="polite">
+      <div class="banner-edge"></div>
+      <div id="liveMessage" class="live-message"></div>
+      <div class="message-progress"><i id="messageProgress"></i></div>
+    </section>
+    <audio id="player" loop></audio>
+  </main>
+  <script src="src/audio-engine.js?v=20260806-13"></script>
+  <script src="src/visual-engine.js?v=20260807-02"></script>
+  <script src="src/dj-soul-youtube.js?v=20260822-01"></script>
+  <script src="src/app.js?v=20260822-01"></script>
+</body>
+</html>
