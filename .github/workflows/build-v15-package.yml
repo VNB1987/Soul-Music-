@@ -1,0 +1,36 @@
+name: Build DJ Soul V15 Package
+
+on:
+  push:
+    branches: [V15]
+    paths-ignore:
+      - 'DJ-Soul-V15.zip'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: V15
+          fetch-depth: 0
+      - name: Build V15 ZIP
+        run: |
+          rm -f DJ-Soul-V15.zip
+          cd engine-x-live
+          zip -r ../DJ-Soul-V15.zip . -x '*.git*'
+      - name: Commit V15 ZIP
+        run: |
+          git config user.name "DJ Soul V15 Builder"
+          git config user.email "actions@users.noreply.github.com"
+          git add DJ-Soul-V15.zip
+          if git diff --cached --quiet; then
+            echo "Package unchanged"
+          else
+            git commit -m "Build DJ Soul V15 downloadable package"
+            git push origin V15
+          fi
