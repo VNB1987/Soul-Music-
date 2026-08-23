@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <title>DJ Soul — Îngeri și Dans</title>
+  <title>DJ Soul — Îngeri și Dans · V15</title>
   <link rel="stylesheet" href="style.css?v=20260807-06">
   <style>
     .controls{grid-template-columns:1fr!important;width:min(1120px,94%)!important;padding:22px!important;gap:14px!important}
@@ -20,13 +20,13 @@
     <div class="tiktok-corner"><span class="tiktok-note">♪</span><b>TikTok</b><i></i></div>
     <div id="topPrompt" class="top-prompt"></div>
     <span id="musicTitleData" data-live-music-title hidden></span>
-    <div class="status"><span class="dot"></span><span id="statusText">CONFIGURARE AUDIO</span></div>
+    <div class="status"><span class="dot"></span><span id="statusText">CONFIGURARE AUDIO · V15</span></div>
 
     <section class="controls" aria-label="Control audio" aria-hidden="true">
       <button id="closeControls" class="close-controls" title="Închide meniul">×</button>
       <div class="audio-console">
         <div class="audio-head">
-          <div class="title"><b>DJ SOUL — AUDIO LIVE</b><span>MUZICĂ · PLACĂ · MICROFON</span></div>
+          <div class="title"><b>DJ SOUL — AUDIO LIVE V15</b><span>MUZICĂ · PLACĂ · MICROFON · VOCE DJ SOUL</span></div>
           <div class="audio-head-actions">
             <button id="autoAudioBtn">CONFIGURARE AUTOMATĂ</button>
             <button id="devicesBtn">REÎNCARCĂ DISPOZITIVE</button>
@@ -56,12 +56,12 @@
           <span id="micState" class="state" data-state="off">NECONECTAT</span>
         </div>
 
-        <div class="audio-help">Recomandat pentru configurația ta: muzică = CABLE Output · ieșire = Speakers (S6) · microfon = Microphone (S6). Microfonul nu este redat în boxe, ca să evităm ecoul.</div>
+        <div class="audio-help">V15 separă muzica de vocea DJ Soul și poate analiza audio-ul general Windows.</div>
 
         <div class="utility-route">
           <button id="outputPickBtn">ALEGE ALTĂ PLACĂ</button>
           <button id="outputTestBtn">TEST SUNET</button>
-          <button id="systemBtn">CAPTUREAZĂ AUDIO SISTEM</button>
+          <button id="systemBtn">AUDIO WINDOWS GENERAL</button>
           <label class="file">FIȘIER MUZICAL<input id="musicFile" type="file" accept="audio/*"></label>
           <button id="sceneBtn" class="scene-btn">☁ SCENĂ CELESTĂ</button>
           <button id="demoBtn">✦ DEMO</button>
@@ -81,7 +81,9 @@
   </main>
   <script src="src/audio-engine.js?v=20260822-03"></script>
   <script src="src/visual-engine.js?v=20260807-02"></script>
+  <script src="src/v15-audio-patch.js?v=20260823-01"></script>
   <script src="src/dj-soul-youtube.js?v=20260822-01"></script>
   <script src="src/app.js?v=20260822-03"></script>
+  <script src="src/v15-ui.js?v=20260823-01"></script>
 </body>
 </html>
